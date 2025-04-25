@@ -1,5 +1,5 @@
 # main.py
-import flet as ft
+import streamlit as st
 import logging
 import httpx
 import json
