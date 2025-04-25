@@ -1,7 +1,6 @@
-import flet as ft
+import streamlit as st
 from datetime import datetime
 import logging
-import streamlit as st
 import asyncio
 from supabase import create_client, Client
 import os
