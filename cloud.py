@@ -607,7 +607,7 @@ class CloudAI:
             logger.error("Test verisi belleğe eklenemedi")
             return False
 
-    def sync_train(self, prompt: str, response: str, intent: str = None, tags: list = None) -> bool:
+    def sync_train(self, prompt: str, response: str, intent: str = None, tags: list = None, priority: int = 1, category: str = "genel") -> bool:
         """Senkron eğitim metodu"""
         try:
             # Giriş kontrolü
@@ -632,6 +632,9 @@ class CloudAI:
                     "response": response,
                     "embedding": prompt_embedding,
                     "intent": intent or "genel",
+                    "tags": tags or [],
+                    "priority": priority,
+                    "category": category,
                     "created_at": datetime.now().isoformat()
                 }
                 
@@ -643,6 +646,9 @@ class CloudAI:
                     "prompt": prompt,
                     "response": response,
                     "intent": intent or "genel",
+                    "tags": tags or [],
+                    "priority": priority,
+                    "category": category,
                     "confidence_score": 1.0,
                     "created_at": datetime.now().isoformat()
                 }

@@ -28,29 +28,37 @@ class TrainerPanel:
         with st.form("training_form"):
             st.markdown("### Yeni Eğitim Verisi Ekle")
             
-            prompt = st.text_area("Soru/Prompt", height=100)
-            response = st.text_area("Yanıt/Response", height=150)
+            # Zorunlu alanlar
+            prompt = st.text_area("Prompt (Zorunlu)", height=100)
+            response = st.text_area("Response (Zorunlu)", height=150)
             intent = st.text_input("Intent (Zorunlu)")
+            tags = st.text_input("Tags (Zorunlu)", help="Virgülle ayırarak birden fazla tag ekleyebilirsiniz")
             
+            # Opsiyonel alanlar
             col1, col2 = st.columns(2)
             with col1:
-                priority = st.number_input("Öncelik", min_value=1, value=1)
+                priority = st.number_input("Priority (Opsiyonel)", min_value=1, value=1)
             with col2:
-                category = st.selectbox("Kategori", ["genel", "teknik", "müşteri", "diğer"])
+                category = st.selectbox("Category (Opsiyonel)", ["genel", "teknik", "müşteri", "diğer"])
             
             submit = st.form_submit_button("Eğitim Verisini Ekle", use_container_width=True)
             
             if submit:
-                if not prompt or not response or not intent:
-                    st.error("Lütfen tüm alanları doldurun.")
+                if not prompt or not response or not intent or not tags:
+                    st.error("Lütfen zorunlu alanları doldurun.")
                     return
                     
                 try:
+                    # Tags'ı listeye çevir
+                    tags_list = [tag.strip() for tag in tags.split(",")]
+                    
                     success = self.app.cloud_ai.sync_train(
                         prompt=prompt,
                         response=response,
                         intent=intent,
-                        tags=[category]
+                        tags=tags_list,
+                        priority=priority,
+                        category=category
                     )
                     
                     if success:
