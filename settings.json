@@ -1,0 +1,12 @@
+{
+    "TTS_ENABLED": false,
+    "STT_ENABLED": false,
+    "THEME_MODE": "dark",
+    "LANGUAGE": "tr",
+    "DEBUG_MODE": false,
+    "LOGGING_LEVEL": "WARNING",
+    "TTS_VOICE": "tr-TR-Standard-A",
+    "TTS_PITCH": 0,
+    "TTS_SPEAKING_RATE": 1.0,
+    "CONTEXT_LENGTH": 3
+}
