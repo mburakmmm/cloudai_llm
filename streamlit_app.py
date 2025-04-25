@@ -7,6 +7,9 @@ from datetime import datetime
 import asyncio
 import nest_asyncio
 
+# Sayfa yapılandırması
+st.set_page_config(page_title="Cloud AI", page_icon="☁️", layout="wide")
+
 # Event loop sorununu çöz
 nest_asyncio.apply()
 
@@ -50,8 +53,8 @@ class CloudLLMApp:
         # Supabase bağlantısını başlat
         try:
             self.supabase = create_client(
-                os.getenv("SUPABASE_URL"),
-                os.getenv("SUPABASE_KEY")
+                supabase_url=os.getenv("SUPABASE_URL"),
+                supabase_key=os.getenv("SUPABASE_KEY")
             )
         except Exception as e:
             logger.error(f"Supabase bağlantı hatası: {str(e)}")
@@ -155,8 +158,6 @@ class CloudLLMApp:
 
     def main(self):
         """Ana uygulama"""
-        st.set_page_config(page_title="Cloud AI", page_icon="☁️", layout="wide")
-
         # Karanlık mod CSS'i
         if st.session_state.dark_mode:
             st.markdown("""
