@@ -64,6 +64,12 @@ class TrainerPanel:
                     if success:
                         st.success("Eğitim verisi başarıyla eklendi!")
                         st.balloons()
+                        # Form alanlarını temizle
+                        st.session_state.current_prompt = ""
+                        st.session_state.current_response = ""
+                        st.session_state.current_intent = ""
+                        st.session_state.current_tag = ""
+                        st.rerun()  # Formu yeniden yükle
                     else:
                         st.error("Eğitim verisi eklenirken bir hata oluştu.")
                         
