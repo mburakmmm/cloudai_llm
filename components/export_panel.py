@@ -8,37 +8,10 @@ import asyncio
 import pandas as pd
 import io
 
-class ExportPanel(ft.Container):
+class ExportPanel:
     def __init__(self, app):
-        super().__init__()
         self.app = app
         self.logger = logging.getLogger(__name__)
-        
-        # Geri bildirim alanı
-        self.feedback = ft.Text()
-        
-        # İçeriği oluştur
-        self.content = ft.Column(
-            [
-                ft.Text("📤 Eğitim Verisi Aktarımı", size=24, weight="bold"),
-                ft.Text("Hafızadaki verileri dışa aktarın.", 
-                       size=13, italic=True),
-                ft.Divider(),
-                ft.ElevatedButton(
-                    "JSON Olarak Dışa Aktar",
-                    icon=ft.icons.DOWNLOAD,
-                    on_click=self.export_json
-                ),
-                ft.ElevatedButton(
-                    "CSV Olarak Dışa Aktar",
-                    icon=ft.icons.DOWNLOAD,
-                    on_click=self.export_csv
-                ),
-                self.feedback
-            ],
-            spacing=20,
-            expand=True
-        )
         
         # Filtreleme seçeneklerini başlat
         if 'selected_intent' not in st.session_state:
@@ -47,72 +20,15 @@ class ExportPanel(ft.Container):
             st.session_state.start_date = None
         if 'end_date' not in st.session_state:
             st.session_state.end_date = None
+            
+    def show_error(self, message):
+        """Hata mesajı göster"""
+        st.error(message)
         
-    async def export_json(self, e):
-        """JSON olarak dışa aktar"""
-        try:
-            # Hafızaları getir
-            memories = await self.app.supabase_manager.export_memories(self.app.user_id)
-            
-            # Dosya adı oluştur
-            filename = f"training_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-            
-            # JSON olarak kaydet
-            with open(filename, "w", encoding="utf-8") as f:
-                json.dump(memories, f, ensure_ascii=False, indent=2)
-                
-            self.feedback.value = f"✅ {filename} dosyası oluşturuldu."
-            self.update()
-            
-        except Exception as e:
-            self.app.show_error(f"Dışa aktarma hatası: {str(e)}")
-            
-    async def export_csv(self, e):
-        """CSV olarak dışa aktar"""
-        try:
-            # Hafızaları getir
-            memories = await self.app.supabase_manager.export_memories(self.app.user_id)
-            
-            # Dosya adı oluştur
-            filename = f"training_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-            
-            # CSV olarak kaydet
-            with open(filename, "w", encoding="utf-8", newline="") as f:
-                writer = csv.DictWriter(f, fieldnames=[
-                    "prompt", "response", "intent", "tags", 
-                    "priority", "usage_count", "category", 
-                    "created_at"
-                ])
-                writer.writeheader()
-                writer.writerows(memories)
-                
-            self.feedback.value = f"✅ {filename} dosyası oluşturuldu."
-            self.update()
-            
-        except Exception as e:
-            self.app.show_error(f"Dışa aktarma hatası: {str(e)}")
-            
-    async def did_mount(self):
-        """Panel yüklendiğinde çağrılır"""
-        try:
-            # Supabase bağlantısını test et
-            self.app.test_supabase_connection()
-            
-            # Dışa aktarma geçmişini yükle
-            response = self.app.supabase.table("export_history").select("*").order("created_at", desc=True).execute()
-            
-            if response.data:
-                for export in response.data:
-                    self.add_export_item(
-                        export["filename"],
-                        export["size"],
-                        export["created_at"]
-                    )
-                    
-        except Exception as e:
-            logging.error(f"Export panel başlatma hatası: {str(e)}")
-            self.show_error("Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin.")
-
+    def add_export_item(self, filename, size, created_at):
+        """Dışa aktarma öğesi ekle"""
+        st.info(f"📥 {filename} ({size} bytes) - {created_at}")
+        
     def render(self):
         """Export panelini göster"""
         # CSS stilleri
@@ -143,7 +59,8 @@ class ExportPanel(ft.Container):
             st.markdown('<div class="export-container">', unsafe_allow_html=True)
             
             # Başlık
-            st.title("Veri Dışa Aktarma")
+            st.title("📤 Veri Dışa Aktarma")
+            st.markdown("Hafızadaki verileri dışa aktarın.")
             
             # Filtre container
             st.markdown('<div class="filter-container">', unsafe_allow_html=True)
@@ -223,7 +140,7 @@ class ExportPanel(ft.Container):
                             st.download_button(
                                 label="JSON Dosyasını İndir",
                                 data=json_data,
-                                file_name="export.json",
+                                file_name=f"training_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
                                 mime="application/json"
                             )
                         elif export_format == "Excel":
@@ -238,8 +155,8 @@ class ExportPanel(ft.Container):
                                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                             )
                         else:
-                            self.app.show_error("Geçersiz format seçildi.")
+                            self.show_error("Geçersiz format seçildi.")
                 except Exception as e:
-                    self.app.show_error(f"Dışa aktarma hatası: {str(e)}")
+                    self.show_error(f"Dışa aktarma hatası: {str(e)}")
             
             st.markdown('</div>', unsafe_allow_html=True)
