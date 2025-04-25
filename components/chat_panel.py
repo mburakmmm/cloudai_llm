@@ -1,6 +1,7 @@
 import streamlit as st
 import logging
 import asyncio
+import time
 from typing import Optional
 from datetime import datetime
 from cloud import CloudAI
@@ -15,6 +16,24 @@ class ChatPanel:
             
         if "current_message" not in st.session_state:
             st.session_state.current_message = ""
+            
+        if "is_typing" not in st.session_state:
+            st.session_state.is_typing = False
+
+    def clear_messages(self):
+        st.session_state.messages = []
+        st.rerun()
+
+    def type_message(self, message: str, speed: float = 0.05) -> str:
+        """Mesajı yavaşça yazdırır"""
+        if not st.session_state.is_typing:
+            st.session_state.is_typing = True
+            typed_message = ""
+            for char in message:
+                typed_message += char
+                yield typed_message
+                time.sleep(speed)
+            st.session_state.is_typing = False
 
     def render(self):
         # Dark mode kontrolü
@@ -38,6 +57,7 @@ class ChatPanel:
             line-height: 1.5;
             font-size: 1rem;
             box-shadow: 0 2px 5px {is_dark_mode and 'rgba(0,0,0,0.2)' or 'rgba(0,0,0,0.1)'};
+            transition: all 0.3s ease;
         }}
 
         /* Kullanıcı mesajı stili */
@@ -134,6 +154,13 @@ class ChatPanel:
             box-shadow: 0 0 0 2px {is_dark_mode and 'rgba(79, 195, 247, 0.2)' or 'rgba(0, 132, 255, 0.2)'};
         }}
 
+        /* Buton container stili */
+        .button-container {{
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }}
+
         /* Gönder butonu stili */
         .stButton > button {{
             background: linear-gradient(135deg, #2979FF, #1565C0);
@@ -143,10 +170,16 @@ class ChatPanel:
             border-radius: 8px;
             font-weight: 600;
             transition: transform 0.2s ease;
+            flex: 1;
         }}
 
         .stButton > button:hover {{
             transform: translateY(-2px);
+        }}
+
+        /* Temizle butonu stili */
+        .clear-button {{
+            background: linear-gradient(135deg, #FF5252, #D32F2F) !important;
         }}
         </style>
         """, unsafe_allow_html=True)
@@ -176,8 +209,18 @@ class ChatPanel:
         # Mesaj girişi
         with st.form("chat_form", clear_on_submit=True):
             user_input = st.text_input("Mesajınız:", key="user_input")
-            submit = st.form_submit_button("Gönder")
             
+            # Buton container
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                submit = st.form_submit_button("Gönder", use_container_width=True)
+            with col2:
+                clear = st.form_submit_button("Mesajları Temizle", use_container_width=True, key="clear_button")
+            
+            if clear:
+                self.clear_messages()
+                return
+                
             if submit and user_input:
                 # Kullanıcı mesajını ekle
                 st.session_state.messages.append({"role": "user", "content": user_input})
@@ -198,13 +241,26 @@ class ChatPanel:
                     # AI yanıtını al
                     response, confidence = self.cloud_ai.sync_process_message(user_input)
                     
-                    # AI yanıtını ekle
-                    st.session_state.messages.append({"role": "assistant", "content": response})
-                    
-                    # Düşünme animasyonunu kaldır ve yanıtı göster
+                    # Düşünme animasyonunu kaldır
                     thinking.empty()
+                    
+                    # Yanıtı yavaşça yazdır
+                    response_container = st.empty()
+                    for typed_response in self.type_message(response, speed=0.05):
+                        response_container.markdown(f'''
+                        <div class="message cloud-message">
+                            <div class="cloud-icon">☁️</div>
+                            <div class="message-content">
+                                <div class="username">Cloud</div>
+                                {typed_response}
+                            </div>
+                        </div>
+                        ''', unsafe_allow_html=True)
+                    
+                    # Son yanıtı mesaj geçmişine ekle
+                    st.session_state.messages.append({"role": "assistant", "content": response})
                     st.rerun()
                     
                 except Exception as e:
-                    st.error(f"Bir hata oluştu: {str(e)}")
+                    st.error(f"Yanıt oluşturulurken bir hata oluştu: {str(e)}")
                     thinking.empty()
