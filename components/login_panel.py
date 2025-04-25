@@ -5,6 +5,10 @@ import asyncio
 from supabase import create_client, Client
 import os
 from dotenv import load_dotenv
+import json
+import jwt
+from passlib.context import CryptContext
+from typing import Optional, Dict, Any
 
 # .env dosyasını yükle
 load_dotenv()
