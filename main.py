@@ -76,26 +76,18 @@ class CloudLLMApp:
         self.language = "tr"
         self.tts_enabled = True
         self.stt_enabled = True
-        self.page = None
         
-        # Tema ayarları
-        self.theme = ft.Theme(
-            color_scheme=ft.ColorScheme(
-                primary=ft.Colors.BLUE,
-                on_primary=ft.Colors.WHITE,
-                primary_container=ft.Colors.BLUE_100,
-                on_primary_container=ft.Colors.BLUE_900,
-                secondary=ft.Colors.BLUE_400,
-                on_secondary=ft.Colors.WHITE,
-                error=ft.Colors.RED_600,
-                on_error=ft.Colors.WHITE,
-                background=ft.Colors.WHITE,
-                on_background=ft.Colors.BLACK,
-                surface=ft.Colors.WHITE,
-                on_surface=ft.Colors.BLACK,
-            ),
-            use_material3=True
-        )
+        # Panelleri oluştur
+        self.panels = [
+            ChatPanel(self),
+            MemoryListPanel(self),
+            TrainerPanel(self),
+            CleanupPanel(self),
+            SettingsPanel(self),
+            IntentAnalyticsPanel(self),
+            AIIntentGroupPanel(self),
+            ExportPanel(self),
+        ]
 
     def test_supabase_connection(self):
         """Supabase bağlantısını test et"""
@@ -107,34 +99,6 @@ class CloudLLMApp:
         except Exception as e:
             logging.error(f"Supabase bağlantı testi başarısız: {str(e)}")
             raise ConnectionError(f"Supabase bağlantı testi başarısız: {str(e)}")
-
-    async def _handle_did_mount(self, control):
-        """Kontrolün ve alt kontrollerinin did_mount metodlarını çağır"""
-        try:
-            # Önce alt kontrolleri işle
-            if hasattr(control, "content") and control.content:
-                await self._handle_did_mount(control.content)
-
-            if hasattr(control, "controls"):
-                for child in control.controls:
-                    if child:
-                        await self._handle_did_mount(child)
-
-            if isinstance(control, ft.Tabs) and control.tabs:
-                for tab in control.tabs:
-                    if tab and tab.content:
-                        await self._handle_did_mount(tab.content)
-
-            # En son did_mount'u çağır
-            if hasattr(control, "did_mount") and callable(control.did_mount):
-                if asyncio.iscoroutinefunction(control.did_mount):
-                    await control.did_mount()
-                else:
-                    control.did_mount()
-
-        except Exception as e:
-            logger.error(f"Kontrol eklenirken hata: {str(e)}")
-            raise
         
     async def login(self, email: str, password: str):
         """Supabase'e giriş yap ve token al"""
@@ -226,245 +190,117 @@ class CloudLLMApp:
                 self.show_error(f"Kayıt olurken bir hata oluştu: {error_msg}")
             return False
             
-    async def main(self, page: ft.Page):
-        self.page = page
-        page.title = "Cloud AI"
-        page.theme = self.theme
-        page.theme_mode = ft.ThemeMode.LIGHT
-        page.padding = 20
-        page.spacing = 20
-        page.window_width = 1200
-        page.window_height = 800
-        page.window_min_width = 800
-        page.window_min_height = 600
-        
-        # AppBar oluştur
-        page.appbar = ft.AppBar(
-            leading=ft.Icon(ft.Icons.CLOUD_QUEUE, size=32, color=ft.Colors.WHITE),
-            leading_width=40,
-            title=ft.Text("Cloud AI", size=28, weight="bold", color=ft.Colors.WHITE),
-            center_title=False,
-            bgcolor=ft.Colors.PRIMARY,
-            actions=[
-                ft.Container(
-                    content=ft.Row(
-                        [
-                            ft.PopupMenuButton(
-                                items=[
-                                    ft.PopupMenuItem(
-                                        text="Sohbet",
-                                        icon=ft.Icons.CHAT_BUBBLE_OUTLINE,
-                                        on_click=lambda _: self.switch_tab(0)
-                                    ),
-                                    ft.PopupMenuItem(
-                                        text="Hafıza",
-                                        icon=ft.Icons.MEMORY,
-                                        on_click=lambda _: self.switch_tab(1)
-                                    ),
-                                    ft.PopupMenuItem(
-                                        text="Eğitici",
-                                        icon=ft.Icons.SCHOOL_OUTLINED,
-                                        on_click=lambda _: self.switch_tab(2)
-                                    ),
-                                    ft.PopupMenuItem(
-                                        text="Temizle",
-                                        icon=ft.Icons.CLEANING_SERVICES_OUTLINED,
-                                        on_click=lambda _: self.switch_tab(3)
-                                    ),
-                                    ft.PopupMenuItem(
-                                        text="Ayarlar",
-                                        icon=ft.Icons.SETTINGS_OUTLINED,
-                                        on_click=lambda _: self.switch_tab(4)
-                                    ),
-                                    ft.PopupMenuItem(
-                                        text="İstatistikler",
-                                        icon=ft.Icons.ANALYTICS_OUTLINED,
-                                        on_click=lambda _: self.switch_tab(5)
-                                    ),
-                                    ft.PopupMenuItem(
-                                        text="Intent Grupları",
-                                        icon=ft.Icons.GROUP_WORK_OUTLINED,
-                                        on_click=lambda _: self.switch_tab(6)
-                                    ),
-                                    ft.PopupMenuItem(
-                                        text="Önemli Öğrenmeler",
-                                        icon=ft.Icons.STAR_OUTLINE,
-                                        on_click=lambda _: self.switch_tab(7)
-                                    ),
-                                    ft.PopupMenuItem(
-                                        text="Dışa Aktar",
-                                        icon=ft.Icons.UPLOAD_FILE,
-                                        on_click=lambda _: self.switch_tab(8)
-                                    ),
-                                    ft.PopupMenuItem(
-                                        text="Eşleşme Geçmişi",
-                                        icon=ft.Icons.HISTORY,
-                                        on_click=lambda _: self.switch_tab(9)
-                                    ),
-                                    ft.PopupMenuItem(
-                                        text="Intent Birleştir",
-                                        icon=ft.Icons.MERGE,
-                                        on_click=lambda _: self.switch_tab(10)
-                                    ),
-                                    ft.PopupMenuItem(
-                                        text="Toplu Silme",
-                                        icon=ft.Icons.DELETE_SWEEP,
-                                        on_click=lambda _: self.switch_tab(11)
-                                    ),
-                                ],
-                                icon=ft.Icons.MENU,
-                                icon_color=ft.Colors.WHITE
-                            ),
-                            ft.Icon(ft.Icons.VOLUME_UP, color=ft.Colors.WHITE),
-                            ft.Text("TTS", color=ft.Colors.WHITE),
-                            ft.Switch(
-                                label="",
-                                value=True,
-                                active_color=ft.Colors.WHITE,
-                                active_track_color=ft.Colors.WHITE24,
-                                inactive_thumb_color=ft.Colors.WHITE70,
-                                inactive_track_color=ft.Colors.WHITE24,
-                                on_change=lambda e: self.toggle_tts(e)
-                            ),
-                            ft.Icon(ft.Icons.DARK_MODE, color=ft.Colors.WHITE),
-                            ft.Text("Karanlık Mod", color=ft.Colors.WHITE),
-                            ft.Switch(
-                                label="",
-                                value=False,
-                                active_color=ft.Colors.WHITE,
-                                active_track_color=ft.Colors.WHITE24,
-                                inactive_thumb_color=ft.Colors.WHITE70,
-                                inactive_track_color=ft.Colors.WHITE24,
-                                on_change=lambda e: self.toggle_theme(e)
-                            ),
-                            ft.ElevatedButton(
-                                text="Giriş Yap" if not self.token else "Çıkış Yap",
-                                icon=ft.Icons.LOGIN if not self.token else ft.Icons.LOGOUT,
-                                style=ft.ButtonStyle(
-                                    color=ft.Colors.PRIMARY,
-                                    bgcolor=ft.Colors.WHITE
-                                ),
-                                on_click=self.toggle_auth
-                            )
-                        ],
-                        spacing=10
-                    ),
-                    padding=10
-                )
-            ]
-        )
-        
-        # Panelleri oluştur
-        self.panels = [
-            ChatPanel(self),
-            MemoryListPanel(self),
-            TrainerPanel(self),
-            CleanupPanel(self),
-            SettingsPanel(self),
-            IntentAnalyticsPanel(self),
-            AIIntentGroupPanel(self),
-            ExportPanel(self),
-        ]
+    def render(self):
+        """Ana sayfayı göster"""
+        # CSS stilleri
+        st.markdown("""
+            <style>
+            .main-container {
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 2rem;
+            }
+            .header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                margin-bottom: 2rem;
+            }
+            .title {
+                font-size: 2rem;
+                font-weight: bold;
+                color: #1E88E5;
+            }
+            .nav-container {
+                display: flex;
+                gap: 1rem;
+                margin-bottom: 2rem;
+            }
+            .nav-button {
+                padding: 0.5rem 1rem;
+                border-radius: 5px;
+                background-color: #E3F2FD;
+                color: #1E88E5;
+                border: none;
+                cursor: pointer;
+            }
+            .nav-button:hover {
+                background-color: #BBDEFB;
+            }
+            .nav-button.active {
+                background-color: #1E88E5;
+                color: white;
+            }
+            </style>
+        """, unsafe_allow_html=True)
 
-        # Panelleri sayfaya ekle
-        for panel in self.panels:
-            page.add(
-                ft.Container(
-                    content=panel,
-        padding=20,
-                    expand=True,
-                    visible=False
-                )
-            )
+        # Ana container
+        with st.container():
+            st.markdown('<div class="main-container">', unsafe_allow_html=True)
+            
+            # Header
+            st.markdown('<div class="header">', unsafe_allow_html=True)
+            st.markdown('<h1 class="title">☁️ Cloud AI</h1>', unsafe_allow_html=True)
+            
+            # Giriş/çıkış butonu
+            if self.token:
+                if st.button("Çıkış Yap"):
+                    self.token = None
+                    self.user_id = None
+                    st.rerun()
+            else:
+                if st.button("Giriş Yap"):
+                    st.session_state.show_login = True
+                    st.rerun()
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            # Giriş paneli
+            if not self.token:
+                login_panel = LoginPanel(self)
+                login_panel.render()
+                return
+                
+            # Navigasyon
+            st.markdown('<div class="nav-container">', unsafe_allow_html=True)
+            
+            # Sekmeler
+            tabs = st.tabs([
+                "Sohbet", "Hafıza", "Eğitici", "Temizle",
+                "Ayarlar", "İstatistikler", "Intent Grupları",
+                "Dışa Aktar"
+            ])
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            # Seçilen sekmeyi göster
+            if 'selected_tab' not in st.session_state:
+                st.session_state.selected_tab = 0
+                
+            # Sekme değişikliğini dinle
+            for i, tab in enumerate(tabs):
+                if tab.button("", key=f"tab_{i}"):
+                    st.session_state.selected_tab = i
+                    st.rerun()
+                    
+            # Seçilen paneli göster
+            if 0 <= st.session_state.selected_tab < len(self.panels):
+                self.panels[st.session_state.selected_tab].render()
+            
+            st.markdown('</div>', unsafe_allow_html=True)
 
-        # İlk paneli görünür yap
-        page.controls[0].visible = True
-
-        # did_mount çağrılarını yap
-        for panel in self.panels:
-            if hasattr(panel, "did_mount") and callable(panel.did_mount):
-                if asyncio.iscoroutinefunction(panel.did_mount):
-                    await panel.did_mount()
-                else:
-                    panel.did_mount()
-
-        # Sayfayı güncelle
-        await page.update_async()
-
-    def toggle_tts(self, e):
+    def toggle_tts(self):
         """TTS'yi aç/kapat"""
-        self.tts_enabled = e.control.value
-        self.show_success(f"TTS {'açıldı' if e.control.value else 'kapandı'}")
-        
-    def toggle_theme(self, e):
-        """Tema modunu değiştir"""
-        if e.control.value:
-            # Karanlık mod
-            self.page.theme = ft.Theme(
-                color_scheme=ft.ColorScheme(
-                    primary=ft.Colors.BLUE,
-                    on_primary=ft.Colors.WHITE,
-                    primary_container=ft.Colors.BLUE_900,
-                    on_primary_container=ft.Colors.BLUE_100,
-                    secondary=ft.Colors.BLUE_200,
-                    on_secondary=ft.Colors.BLACK,
-                    error=ft.Colors.RED_200,
-                    on_error=ft.Colors.BLACK,
-                    background=ft.Colors.GREY_900,
-                    on_background=ft.Colors.WHITE,
-                    surface=ft.Colors.GREY_800,
-                    on_surface=ft.Colors.WHITE,
-                    surface_tint=ft.Colors.BLUE_700,
-                    outline=ft.Colors.GREY_600,
-                ),
-                use_material3=True
-            )
-            self.page.theme_mode = ft.ThemeMode.DARK
-        else:
-            # Aydınlık mod
-            self.page.theme = ft.Theme(
-                color_scheme=ft.ColorScheme(
-                    primary=ft.Colors.BLUE,
-                    on_primary=ft.Colors.WHITE,
-                    primary_container=ft.Colors.BLUE_100,
-                    on_primary_container=ft.Colors.BLUE_900,
-                    secondary=ft.Colors.BLUE_600,
-                    on_secondary=ft.Colors.WHITE,
-                    error=ft.Colors.RED_600,
-                    on_error=ft.Colors.WHITE,
-                    background=ft.Colors.WHITE,
-                    on_background=ft.Colors.BLACK,
-                    surface=ft.Colors.WHITE,
-                    on_surface=ft.Colors.BLACK,
-                    surface_tint=ft.Colors.BLUE_100,
-                    outline=ft.Colors.GREY_400,
-                ),
-                use_material3=True
-            )
-            self.page.theme_mode = ft.ThemeMode.LIGHT
-        self.page.update()
+        self.tts_enabled = not self.tts_enabled
+        st.success(f"TTS {'açıldı' if self.tts_enabled else 'kapandı'}")
         
     def show_error(self, message):
         """Hata mesajı göster"""
-        self.page.snack_bar = ft.SnackBar(
-            content=ft.Text(message, color=ft.Colors.RED),
-            bgcolor=ft.Colors.ERROR,
-            show_close_icon=True,
-            close_icon_color=ft.Colors.WHITE
-        )
-        self.page.snack_bar.open = True
-        self.page.update()
+        st.error(message)
         
     def show_success(self, message):
         """Başarı mesajı göster"""
-        self.page.snack_bar = ft.SnackBar(
-            content=ft.Text(message, color=ft.Colors.GREEN),
-            bgcolor=ft.Colors.SURFACE_TINT,
-            show_close_icon=True,
-            close_icon_color=ft.Colors.WHITE
-        )
-        self.page.snack_bar.open = True
-        self.page.update()
+        st.success(message)
 
     async def get_response(self, message):
         """Kullanıcı mesajına yanıt ver"""
@@ -494,35 +330,6 @@ class CloudLLMApp:
             logging.error(f"Yanıt alma hatası: {str(e)}")
             return "Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin."
 
-    def switch_tab(self, index):
-        """Sekme değiştir"""
-        if 0 <= index < len(self.page.controls):
-            # Tüm panelleri gizle
-            for control in self.page.controls:
-                control.visible = False
-
-            # Seçilen paneli göster
-            self.page.controls[index].visible = True
-            self.page.update()
-
-    async def toggle_auth(self, e):
-        """Giriş/çıkış işlemlerini yönet"""
-        if not self.token:
-            # Giriş yapma sayfasına yönlendir
-            self.page.clean()
-            self.page.add(LoginPanel(self))
-        else:
-            # Çıkış yap
-            try:
-                await self.supabase.auth.sign_out()
-                self.token = None
-                self.user_id = None
-                self.show_success("Başarıyla çıkış yapıldı")
-                self.page.clean()
-                await self.main(self.page)
-            except Exception as e:
-                self.show_error(f"Çıkış yapılırken hata: {str(e)}")
-
 # FastAPI endpoint'leri
 @app.get("/")
 async def root():
@@ -533,14 +340,9 @@ async def health_check():
     return {"status": "healthy"}
 
 if __name__ == "__main__":
-    # Flet uygulamasını başlat
-    flet_app = CloudLLMApp()
-    ft.app(
-        target=flet_app.main,
-        view=ft.AppView.FLET_APP,
-        assets_dir="static",
-        name="Cloud AI"
-    )
+    # Streamlit uygulamasını başlat
+    cloud_app = CloudLLMApp()
+    cloud_app.render()
     
     # FastAPI uygulamasını başlat
     uvicorn.run(app, host="0.0.0.0", port=8000)
