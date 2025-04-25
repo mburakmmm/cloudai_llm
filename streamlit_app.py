@@ -92,8 +92,6 @@ class CloudLLMApp:
             st.session_state.is_authenticated = False
         if 'dark_mode' not in st.session_state:
             st.session_state.dark_mode = False
-        if 'tts_enabled' not in st.session_state:
-            st.session_state.tts_enabled = False
         if 'token' not in st.session_state:
             st.session_state.token = None
         if 'user_id' not in st.session_state:
