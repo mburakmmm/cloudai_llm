@@ -24,7 +24,7 @@ class ChatPanel:
         st.session_state.messages = []
         st.rerun()
 
-    def type_message(self, message: str, speed: float = 0.05) -> str:
+    def type_message(self, message: str, speed: float = 0.1) -> str:
         """Mesajı yavaşça yazdırır"""
         if not st.session_state.is_typing:
             st.session_state.is_typing = True
@@ -246,7 +246,7 @@ class ChatPanel:
                     
                     # Yanıtı yavaşça yazdır
                     response_container = st.empty()
-                    for typed_response in self.type_message(response, speed=0.05):
+                    for typed_response in self.type_message(response, speed=0.1):
                         response_container.markdown(f'''
                         <div class="message cloud-message">
                             <div class="cloud-icon">☁️</div>
