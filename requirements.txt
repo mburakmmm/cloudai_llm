@@ -17,4 +17,5 @@ scipy==1.12.0
 tqdm==4.66.2
 srt==3.5.3
 kivymd==1.2.0
-nest_asyncio==1.6.0 
+nest_asyncio==1.6.0
+supabase==2.3.4 
