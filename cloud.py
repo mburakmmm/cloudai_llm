@@ -447,51 +447,48 @@ class CloudAI:
             logger.error(f"Supabase bağlantı testi başarısız: {str(e)}")
             return False
 
-    async def process_message(self, message: str) -> tuple[str, float]:
-        """Mesajı işler ve en uygun yanıtı döndürür."""
-        try:
-            # Mesaj vektörünü hesapla
-            message_embedding = self.encode_text(message)
-            
-            # En benzer yanıtı bul
-            try:
-                response = await self.memory_manager.find_best_response(message_embedding)
-                if isinstance(response, tuple):
-                    return response
-                elif response:
-                    return response, 1.0
-                else:
-                    return "Üzgünüm, bu mesaja uygun bir yanıt bulamadım.", 0.0
-            except Exception as e:
-                logger.error(f"Yanıt bulma hatası: {str(e)}")
-                return "Yanıt bulunurken bir hata oluştu.", 0.0
-                
-        except Exception as e:
-            logger.error(f"Mesaj işleme hatası: {str(e)}")
-            return "Bir hata oluştu, lütfen tekrar deneyin.", 0.0
-
     def sync_process_message(self, message: str) -> tuple[str, float]:
-        """Senkron olarak mesaj işle ve yanıt döndür"""
+        """Mesajı işle ve yanıt döndür"""
         try:
-            # Mesaj vektörünü hesapla
-            message_embedding = self.encode_text(message)
+            # Mesajı ön işle
+            processed_message = self.preprocess_text(message)
             
-            # En benzer yanıtı bul
-            try:
-                response = self.memory_manager.find_best_response(message_embedding)
-                if isinstance(response, tuple):
-                    return response
-                elif response:
-                    return response, 1.0
-                else:
-                    return "Üzgünüm, bu mesaja uygun bir yanıt bulamadım.", 0.0
-            except Exception as e:
-                logger.error(f"Yanıt bulma hatası: {str(e)}")
-                return "Yanıt bulunurken bir hata oluştu.", 0.0
+            # Eğer mesaj anlamlı değilse hata döndür
+            if not self.is_meaningful_input(processed_message):
+                return ERRORS["input_error"], 0.0
                 
+            # Mesajı vektöre dönüştür
+            message_embedding = self.encode_text(processed_message)
+            
+            # Hafızada benzer mesajları ara
+            similar_memories = self.memory_manager.find_similar_memories(
+                message_embedding,
+                threshold=self.confidence_threshold
+            )
+            
+            # Eğer benzer mesaj bulunamazsa
+            if not similar_memories:
+                # Temel yanıtları kontrol et
+                if processed_message.lower() in ["merhaba", "selam", "hey", "hi", "hello"]:
+                    return "Merhaba! Size nasıl yardımcı olabilirim?", 1.0
+                elif processed_message.lower() in ["nasılsın", "iyi misin", "ne haber"]:
+                    return "İyiyim, teşekkür ederim! Siz nasılsınız?", 1.0
+                elif processed_message.lower() in ["teşekkür", "sağol", "eyvallah"]:
+                    return "Rica ederim! Başka bir konuda yardımcı olabilir miyim?", 1.0
+                elif processed_message.lower() in ["güle güle", "hoşça kal", "bay bay"]:
+                    return "Güle güle! İyi günler dilerim.", 1.0
+                else:
+                    return ERRORS["input_error"], 0.0
+            
+            # En iyi eşleşmeyi bul
+            best_match = max(similar_memories, key=lambda x: x["similarity"])
+            
+            # Yanıtı döndür
+            return best_match["response"], best_match["similarity"]
+            
         except Exception as e:
             logger.error(f"Mesaj işleme hatası: {str(e)}")
-            return "Bir hata oluştu, lütfen tekrar deneyin.", 0.0
+            return ERRORS["response_error"], 0.0
 
     async def learn(self, prompt: str, response: str, intent: str = None) -> bool:
         """Yeni bir prompt-yanıt çifti öğrenir."""

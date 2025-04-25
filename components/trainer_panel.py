@@ -30,7 +30,7 @@ class TrainerPanel:
             
             prompt = st.text_area("Soru/Prompt", height=100)
             response = st.text_area("Yanıt/Response", height=150)
-            intent = st.text_input("Intent (Opsiyonel)")
+            intent = st.text_input("Intent (Zorunlu)")
             
             col1, col2 = st.columns(2)
             with col1:
@@ -41,8 +41,8 @@ class TrainerPanel:
             submit = st.form_submit_button("Eğitim Verisini Ekle", use_container_width=True)
             
             if submit:
-                if not prompt or not response:
-                    st.error("Lütfen soru ve yanıt alanlarını doldurun.")
+                if not prompt or not response or not intent:
+                    st.error("Lütfen tüm alanları doldurun.")
                     return
                     
                 try:
