@@ -18,7 +18,7 @@ tqdm==4.66.2
 srt==3.5.3
 kivymd==1.2.0
 nest_asyncio==1.6.0
-supabase==2.3.4
+supabase-py==2.0.3
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 python-multipart==0.0.6
