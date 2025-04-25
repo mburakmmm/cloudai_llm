@@ -2,7 +2,7 @@
 
 Cloud AI LLM, yapay zeka destekli bir sohbet ve eğitim platformudur.
 
-## Kurulum
+## Yerel Kurulum
 
 1. Repoyu klonlayın:
 ```bash
@@ -31,9 +31,58 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-## Ortam Değişkenleri (.env)
+## Streamlit Cloud Deployment
 
-Uygulama çalışmadan önce aşağıdaki ortam değişkenlerinin ayarlanması gerekir:
+1. [Streamlit Cloud](https://streamlit.io/cloud) hesabınıza giriş yapın
+
+2. "New app" butonuna tıklayın
+
+3. GitHub reponuzu seçin ve main branch'i belirleyin
+
+4. Advanced Settings'de Python versiyonunu seçin (3.10 önerilen)
+
+5. Secrets yönetimi:
+   - Settings > Secrets menüsüne gidin
+   - Aşağıdaki içeriği `.streamlit/secrets.toml` formatında ekleyin:
+   ```toml
+   # Supabase Credentials
+   SUPABASE_URL = "your_supabase_url_here"
+   SUPABASE_KEY = "your_supabase_key_here"
+
+   # Model Settings
+   MODEL_PATH = "models/"
+   MODEL_NAME = "cloud_llm"
+   CONFIDENCE_THRESHOLD = 0.7
+   MAX_CONTEXT_LENGTH = 2000
+
+   # Logging
+   LOG_LEVEL = "INFO"
+
+   # Backup Settings
+   AUTO_BACKUP = true
+   BACKUP_FREQUENCY = "Günlük"
+
+   # Optional Settings
+   TTS_ENABLED = false
+   DARK_MODE = false
+   ```
+
+6. Deploy butonuna tıklayın
+
+Not: Streamlit Cloud'da environment variables yerine `st.secrets` kullanılır. Uygulama kodunda aşağıdaki gibi erişebilirsiniz:
+```python
+import streamlit as st
+
+# .env'den okuma
+supabase_url = os.getenv("SUPABASE_URL")
+
+# Streamlit secrets'dan okuma
+supabase_url = st.secrets["SUPABASE_URL"]
+```
+
+## Ortam Değişkenleri
+
+Uygulama çalışmadan önce aşağıdaki değişkenlerin ayarlanması gerekir:
 
 ### Zorunlu Değişkenler:
 
@@ -56,19 +105,18 @@ Uygulama çalışmadan önce aşağıdaki ortam değişkenlerinin ayarlanması g
 
 1. [Supabase](https://supabase.com) üzerinde yeni bir proje oluşturun
 2. Proje ayarlarından URL ve API Key bilgilerini alın
-3. Bu bilgileri `.env` dosyanıza ekleyin:
-```env
-SUPABASE_URL=your_project_url
-SUPABASE_KEY=your_api_key
-```
+3. Bu bilgileri:
+   - Yerel geliştirme için `.env` dosyanıza
+   - Streamlit Cloud için Secrets yönetimine ekleyin
 
 ## Güvenlik Notları
 
 - `.env` dosyası asla Git reposuna eklenmemelidir
 - Supabase credentials'larını güvenli bir şekilde saklayın
-- Production ortamında farklı bir `.env` dosyası kullanın
+- Production ortamında farklı credentials kullanın
+- Streamlit Cloud'da secrets.toml dosyasını güvenli bir şekilde yönetin
 
-## Uygulama Başlatma
+## Yerel Geliştirme İçin Uygulama Başlatma
 
 ```bash
 streamlit run streamlit_app.py
