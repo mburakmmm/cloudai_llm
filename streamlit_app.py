@@ -53,8 +53,8 @@ class CloudLLMApp:
         # Supabase bağlantısını başlat
         try:
             self.supabase = create_client(
-                url=os.getenv("SUPABASE_URL"),
-                key=os.getenv("SUPABASE_KEY")
+                supabase_url=os.getenv("SUPABASE_URL"),
+                supabase_key=os.getenv("SUPABASE_KEY")
             )
         except Exception as e:
             logger.error(f"Supabase bağlantı hatası: {str(e)}")
