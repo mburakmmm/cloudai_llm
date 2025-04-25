@@ -59,7 +59,7 @@ class CloudLLMApp:
         except Exception as e:
             logger.error(f"Supabase bağlantı hatası: {str(e)}")
             st.error("Veritabanı bağlantısı kurulamadı. Lütfen daha sonra tekrar deneyin.")
-            return
+            self.supabase = None
         
         # CloudAI nesnesini başlat
         try:
@@ -67,7 +67,7 @@ class CloudLLMApp:
         except Exception as e:
             logger.error(f"CloudAI başlatılırken hata: {str(e)}")
             st.error("AI sistemi başlatılamadı. Lütfen daha sonra tekrar deneyin.")
-            return
+            self.cloud_ai = None
             
         # Panelleri başlat
         try:
@@ -84,7 +84,17 @@ class CloudLLMApp:
         except Exception as e:
             logger.error(f"Panel başlatma hatası: {str(e)}")
             st.error("Paneller yüklenemedi. Lütfen sayfayı yenileyin.")
-            return
+            # Panelleri None olarak ayarla
+            self.login_panel = None
+            self.chat_panel = None
+            self.export_panel = None
+            self.ai_intent_group_panel = None
+            self.intent_analytics_panel = None
+            self.settings_panel = None
+            self.cleanup_panel = None
+            self.memory_list_panel = None
+            self.trainer_panel = None
+            self.sidebar = None
 
     def setup_session_state(self):
         if 'messages' not in st.session_state:
@@ -244,6 +254,9 @@ class CloudLLMApp:
 
         # Giriş yapılmamışsa login panelini göster
         if not st.session_state.is_authenticated:
+            if self.login_panel is None:
+                st.error("Giriş paneli yüklenemedi. Lütfen sayfayı yenileyin.")
+                return
             self.login_panel.render()
             return
 
@@ -251,25 +264,52 @@ class CloudLLMApp:
         st.title("☁️ Cloud AI")
         
         # Yan menüyü göster
+        if self.sidebar is None:
+            st.error("Yan menü yüklenemedi. Lütfen sayfayı yenileyin.")
+            return
         self.sidebar.render()
         
         # Seçilen paneli göster
         try:
             if st.session_state.selected_panel == "Sohbet":
+                if self.chat_panel is None:
+                    st.error("Sohbet paneli yüklenemedi. Lütfen sayfayı yenileyin.")
+                    return
                 self.chat_panel.render()
             elif st.session_state.selected_panel == "Hafıza":
+                if self.memory_list_panel is None:
+                    st.error("Hafıza paneli yüklenemedi. Lütfen sayfayı yenileyin.")
+                    return
                 self.memory_list_panel.render()
             elif st.session_state.selected_panel == "Eğitici":
+                if self.trainer_panel is None:
+                    st.error("Eğitici paneli yüklenemedi. Lütfen sayfayı yenileyin.")
+                    return
                 self.trainer_panel.render()
             elif st.session_state.selected_panel == "Temizle":
+                if self.cleanup_panel is None:
+                    st.error("Temizleme paneli yüklenemedi. Lütfen sayfayı yenileyin.")
+                    return
                 self.cleanup_panel.render()
             elif st.session_state.selected_panel == "Ayarlar":
+                if self.settings_panel is None:
+                    st.error("Ayarlar paneli yüklenemedi. Lütfen sayfayı yenileyin.")
+                    return
                 self.settings_panel.render()
             elif st.session_state.selected_panel == "İstatistikler":
+                if self.intent_analytics_panel is None:
+                    st.error("İstatistikler paneli yüklenemedi. Lütfen sayfayı yenileyin.")
+                    return
                 self.intent_analytics_panel.render()
             elif st.session_state.selected_panel == "Intent Grupları":
+                if self.ai_intent_group_panel is None:
+                    st.error("Intent grupları paneli yüklenemedi. Lütfen sayfayı yenileyin.")
+                    return
                 self.ai_intent_group_panel.render()
             elif st.session_state.selected_panel == "Dışa Aktar":
+                if self.export_panel is None:
+                    st.error("Dışa aktarma paneli yüklenemedi. Lütfen sayfayı yenileyin.")
+                    return
                 self.export_panel.render()
         except Exception as e:
             st.error(f"Panel yüklenirken hata oluştu: {str(e)}")
