@@ -236,8 +236,12 @@ class SQLiteMemoryManager:
     def find_best_response(self, query_embedding: np.ndarray) -> Tuple[Optional[str], float]:
         """En iyi yanıtı bul"""
         try:
-            if query_embedding is None or not isinstance(query_embedding, np.ndarray):
-                logger.error("Geçersiz query_embedding")
+            if query_embedding is None:
+                logger.error("query_embedding None olamaz")
+                return None, 0.0
+
+            if not isinstance(query_embedding, np.ndarray):
+                logger.error(f"query_embedding numpy array olmalı, şu an: {type(query_embedding)}")
                 return None, 0.0
 
             with sqlite3.connect(self.db_path) as conn:
@@ -248,39 +252,60 @@ class SQLiteMemoryManager:
                 memories = cursor.fetchall()
                 
                 if not memories:
-                    logger.warning("Embedding içeren bellek bulunamadı")
+                    logger.warning("Veritabanında hiç bellek bulunamadı")
                     return None, 0.0
                     
                 # Benzerlik skorlarını hesapla
                 similarities = []
                 for memory in memories:
                     try:
-                        if memory[1] is None:  # embedding None ise atla
+                        memory_id, memory_embedding_blob, response = memory
+                        
+                        if memory_embedding_blob is None:
+                            logger.debug(f"ID {memory_id} için embedding verisi yok")
                             continue
                             
-                        memory_embedding = np.frombuffer(memory[1], dtype=np.float32)
+                        memory_embedding = np.frombuffer(memory_embedding_blob, dtype=np.float32)
+                        
+                        # Boyut kontrolü
                         if memory_embedding.shape != query_embedding.shape:
                             logger.warning(f"Embedding boyutları uyuşmuyor: {memory_embedding.shape} != {query_embedding.shape}")
                             continue
+                        
+                        # Normalize et
+                        memory_embedding_norm = np.linalg.norm(memory_embedding)
+                        query_embedding_norm = np.linalg.norm(query_embedding)
+                        
+                        if memory_embedding_norm == 0 or query_embedding_norm == 0:
+                            logger.warning(f"Sıfır norm tespit edildi - Memory: {memory_embedding_norm}, Query: {query_embedding_norm}")
+                            continue
                             
-                        similarity = np.dot(query_embedding, memory_embedding) / (
-                            np.linalg.norm(query_embedding) * np.linalg.norm(memory_embedding)
-                        )
-                        similarities.append((memory[2], similarity))
+                        # Kosinüs benzerliği hesapla
+                        similarity = np.dot(query_embedding, memory_embedding) / (memory_embedding_norm * query_embedding_norm)
+                        
+                        logger.debug(f"ID {memory_id} için benzerlik skoru: {similarity}")
+                        similarities.append((response, similarity, memory_id))
+                        
                     except Exception as e:
-                        logger.error(f"Bellek işleme hatası {memory[0]}: {str(e)}")
+                        logger.error(f"Bellek {memory[0]} için benzerlik hesaplama hatası: {str(e)}")
                         continue
                 
                 if not similarities:
-                    logger.warning("Geçerli benzerlik skoru hesaplanamadı")
+                    logger.warning("Hiç geçerli benzerlik skoru hesaplanamadı")
                     return None, 0.0
                     
                 # En yüksek benzerlik skoruna sahip yanıtı bul
-                best_response, best_similarity = max(similarities, key=lambda x: x[1])
-                logger.debug(f"En iyi yanıt bulundu - Benzerlik: {best_similarity}")
+                best_response, best_similarity, best_memory_id = max(similarities, key=lambda x: x[1])
+                
+                logger.info(f"En iyi yanıt bulundu - ID: {best_memory_id}, Benzerlik: {best_similarity}")
+                
+                # Benzerlik skoru çok düşükse None döndür
+                if best_similarity < 0.5:  # Eşik değerini düşürdüm
+                    logger.warning(f"En iyi benzerlik skoru çok düşük: {best_similarity}")
+                    return None, best_similarity
                 
                 # Kullanım istatistiklerini güncelle
-                self.update_usage_stats(memory[0], best_similarity)
+                self.update_usage_stats(best_memory_id, best_similarity)
                 
                 return best_response, best_similarity
                 
