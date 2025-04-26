@@ -22,7 +22,7 @@ class ChatPanel:
         st.success("Mesaj geçmişi temizlendi!")
         st.rerun()
         
-    def _type_message_slowly(self, text: str, delay: float = 0.1):
+    def _type_message_slowly(self, text: str, delay: float = 0.2):
         """Mesajı yavaşça yaz"""
         placeholder = st.empty()
         full_text = ""
@@ -34,6 +34,7 @@ class ChatPanel:
                     <div class="message-content">
                         <div class="username">Cloud AI</div>
                         {full_text}
+                        <div class="typing-cursor">|</div>
                     </div>
                 </div>
             ''', unsafe_allow_html=True)
@@ -105,29 +106,54 @@ class ChatPanel:
         .thinking-container {
             display: flex;
             align-items: center;
-            padding: 8px 16px;
+            padding: 12px 16px;
             background: #f0f2f5;
             border-radius: 12px;
             margin: 8px 0;
             border: 1px solid #e4e6eb;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         
-        .typing-animation {
+        .thinking-dots {
+            display: flex;
+            gap: 4px;
+            margin-left: 8px;
+        }
+        
+        .thinking-dot {
+            width: 8px;
+            height: 8px;
+            background: #4A90E2;
+            border-radius: 50%;
+            animation: thinking 1.5s infinite;
+        }
+        
+        .thinking-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        
+        .thinking-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        
+        @keyframes thinking {
+            0%, 100% { transform: translateY(0); opacity: 0.3; }
+            50% { transform: translateY(-4px); opacity: 1; }
+        }
+        
+        /* Daktilo imleci */
+        .typing-cursor {
             display: inline-block;
-            margin-left: 4px;
-            color: #65676b;
+            width: 2px;
+            height: 1em;
+            background: #4A90E2;
+            margin-left: 2px;
+            animation: blink 1s infinite;
         }
         
-        .typing-animation::after {
-            content: '...';
-            animation: typing 1.5s infinite;
-        }
-        
-        @keyframes typing {
-            0% { content: '.'; }
-            33% { content: '..'; }
-            66% { content: '...'; }
-            100% { content: '.'; }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
         }
         
         /* Input alanı */
@@ -285,7 +311,12 @@ class ChatPanel:
                 <div class="cloud-icon">🤖</div>
                 <div class="message-content">
                     <div class="username">Cloud AI</div>
-                    Düşünüyorum<span class="typing-animation"></span>
+                    Düşünüyorum
+                    <div class="thinking-dots">
+                        <div class="thinking-dot"></div>
+                        <div class="thinking-dot"></div>
+                        <div class="thinking-dot"></div>
+                    </div>
                 </div>
             </div>
             ''', unsafe_allow_html=True)
