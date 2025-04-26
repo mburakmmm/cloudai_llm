@@ -322,7 +322,11 @@ class ChatPanel:
         with st.form(key="message_form", clear_on_submit=True):
             col1, col2, col3 = st.columns([4, 1, 1])
             with col1:
-                user_input = st.text_input("Mesajınızı yazın...", key="user_input")
+                user_input = st.text_input(
+                    "Mesajınızı yazın...",
+                    key="user_input",
+                    on_change=self._on_enter_pressed
+                )
             with col2:
                 submit_button = st.form_submit_button("Gönder", use_container_width=True)
             with col3:
@@ -337,6 +341,12 @@ class ChatPanel:
         st.markdown("</div>", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
                 
+    def _on_enter_pressed(self):
+        """Enter tuşuna basıldığında çalışacak fonksiyon"""
+        if st.session_state.user_input and not st.session_state.is_processing:
+            self._process_user_input(st.session_state.user_input)
+            st.session_state.user_input = ""
+
     def _process_user_input(self, message: str):
         """Kullanıcı mesajını işle"""
         try:
@@ -349,44 +359,30 @@ class ChatPanel:
             response, confidence = self.cloud_ai.sync_process_message(message)
             
             if response:
-                # Yanıtı karakter karakter göster
-                current_messages = st.session_state.messages.copy()
-                message_placeholder = st.empty()
-                partial_response = ""
-                
-                for char in response:
-                    partial_response += char
-                    current_messages_with_partial = current_messages + [{"role": "assistant", "content": partial_response}]
-                    
-                    # Tüm mesajları göster
-                    message_placeholder.markdown("<div class='messages-container'>", unsafe_allow_html=True)
-                    for msg in current_messages_with_partial:
-                        if msg["role"] == "user":
-                            message_placeholder.markdown(f'''
-                            <div class="message user-message">
-                                <div class="message-content">
-                                    <div class="username">Siz</div>
-                                    {msg["content"]}
-                                </div>
-                            </div>
-                            ''', unsafe_allow_html=True)
-                        else:
-                            message_placeholder.markdown(f'''
-                            <div class="message cloud-message">
-                                <div class="cloud-icon">🤖</div>
-                                <div class="message-content">
-                                    <div class="username">Cloud AI</div>
-                                    {msg["content"]}
-                                    {'' if msg == current_messages_with_partial[-1] else ''}
-                                    {'' if msg != current_messages_with_partial[-1] else '<div class="typing-cursor">|</div>'}
-                                </div>
-                            </div>
-                            ''', unsafe_allow_html=True)
-                    message_placeholder.markdown("</div>", unsafe_allow_html=True)
-                    st.empty()  # Hafif gecikme için
-                
                 # Yanıtı session state'e ekle
                 st.session_state.messages.append({"role": "assistant", "content": response})
+                
+                # Tüm mesajları göster
+                for msg in st.session_state.messages:
+                    if msg["role"] == "user":
+                        st.markdown(f'''
+                        <div class="message user-message">
+                            <div class="message-content">
+                                <div class="username">Siz</div>
+                                {msg["content"]}
+                            </div>
+                        </div>
+                        ''', unsafe_allow_html=True)
+                    else:
+                        st.markdown(f'''
+                        <div class="message cloud-message">
+                            <div class="cloud-icon">🤖</div>
+                            <div class="message-content">
+                                <div class="username">Cloud AI</div>
+                                {msg["content"]}
+                            </div>
+                        </div>
+                        ''', unsafe_allow_html=True)
                 
                 # Input alanını temizle
                 st.session_state.user_input = ""
