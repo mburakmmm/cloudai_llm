@@ -8,7 +8,7 @@ from memory_sqlite import SQLiteMemoryManager
 import logging
 from datetime import datetime
 import asyncio
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
 from supabase import create_client, Client
 import os
 from dotenv import load_dotenv
@@ -55,7 +55,10 @@ if not supabase_url or not supabase_key:
 class CloudAI:
     def __init__(self):
         # Supabase bağlantısı
-        self.supabase: Client = create_client(supabase_url, supabase_key)
+        self.supabase = create_client(
+            os.getenv("SUPABASE_URL"),
+            os.getenv("SUPABASE_KEY")
+        )
         logger.info("Supabase bağlantısı başarılı")
 
         # NLP modeli yükleme - PyTorch ayarları
@@ -863,4 +866,38 @@ class CloudAI:
     def __del__(self):
         """Yıkıcı metod"""
         self.close()
+
+    def sync_login(self, email: str, password: str) -> bool:
+        """Senkron giriş işlemi"""
+        try:
+            # Supabase auth işlemi
+            auth_response = self.supabase.auth.sign_in_with_password({
+                "email": email,
+                "password": password
+            })
+            
+            if auth_response and hasattr(auth_response.user, 'id'):
+                return True
+            return False
+            
+        except Exception as e:
+            logger.error(f"Giriş hatası: {str(e)}")
+            return False
+
+    def sync_register(self, email: str, password: str) -> bool:
+        """Senkron kayıt işlemi"""
+        try:
+            # Supabase auth işlemi
+            auth_response = self.supabase.auth.sign_up({
+                "email": email,
+                "password": password
+            })
+            
+            if auth_response and hasattr(auth_response.user, 'id'):
+                return True
+            return False
+            
+        except Exception as e:
+            logger.error(f"Kayıt hatası: {str(e)}")
+            return False
 
