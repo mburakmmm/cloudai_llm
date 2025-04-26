@@ -22,7 +22,7 @@ class ChatPanel:
         st.success("Mesaj geçmişi temizlendi!")
         st.rerun()
         
-    def _type_message_slowly(self, text: str, delay: float = 0.2):
+    def _type_message_slowly(self, text: str, delay: float = 0.05):
         """Mesajı yavaşça yaz"""
         placeholder = st.empty()
         full_text = ""
