@@ -154,6 +154,8 @@ class LoginPanel:
                         st.success("Giriş başarılı!")
                         st.session_state.logged_in = True
                         st.session_state.email = email
+                        st.session_state.is_authenticated = True
+                        st.session_state.selected_panel = "Sohbet"
                         st.rerun()
                     else:
                         st.error("Geçersiz e-posta veya şifre.")
