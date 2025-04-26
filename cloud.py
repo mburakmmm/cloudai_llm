@@ -453,48 +453,33 @@ class CloudAI:
             # Mesajı ön işle
             processed_message = self.preprocess_text(message)
             
-            # Eğer mesaj anlamlı değilse hata döndür
-            if not self.is_meaningful_input(processed_message):
-                return ERRORS["input_error"], 0.0
+            # Embedding hesapla
+            message_embedding = self.encode_text(processed_message)
+            
+            # Benzer hafızaları bul
+            response, confidence = self.memory_manager.find_best_response(message_embedding)
+            
+            if response and confidence >= self.confidence_threshold:
+                return response, confidence
                 
-            # Mesajı vektöre dönüştür
-            try:
-                message_embedding = self.encode_text(processed_message)
-            except Exception as e:
-                logger.error(f"Vektör dönüşümü hatası: {str(e)}")
-                return ERRORS["response_error"], 0.0
+            # Eğer yeterince benzer hafıza bulunamazsa, yeni bir yanıt oluştur
+            intent = predict_intent(processed_message)
+            response = self.generate_response(processed_message, intent)
             
-            # Hafızada benzer mesajları ara
-            try:
-                similar_memories = self.memory_manager.find_similar_memories(
-                    message_embedding,
-                    threshold=self.confidence_threshold
-                )
-            except Exception as e:
-                logger.error(f"Bellek arama hatası: {str(e)}")
-                return ERRORS["memory_error"], 0.0
+            # Yeni hafızayı kaydet
+            memory_data = {
+                "prompt": processed_message,
+                "response": response,
+                "embedding": message_embedding,
+                "intent": intent,
+                "tags": [],
+                "priority": 1,
+                "category": "genel"
+            }
             
-            # Eğer benzer mesaj bulunamazsa
-            if not similar_memories:
-                # Temel yanıtları kontrol et
-                if processed_message.lower() in ["merhaba", "selam", "hey", "hi", "hello"]:
-                    return "Merhaba! Size nasıl yardımcı olabilirim?", 1.0
-                elif processed_message.lower() in ["nasılsın", "iyi misin", "ne haber"]:
-                    return "İyiyim, teşekkür ederim! Siz nasılsınız?", 1.0
-                elif processed_message.lower() in ["teşekkür", "sağol", "eyvallah"]:
-                    return "Rica ederim! Başka bir konuda yardımcı olabilir miyim?", 1.0
-                elif processed_message.lower() in ["güle güle", "hoşça kal", "bay bay"]:
-                    return "Güle güle! İyi günler dilerim.", 1.0
-                else:
-                    return ERRORS["input_error"], 0.0
+            self.memory_manager.add_memory(memory_data)
             
-            # En iyi eşleşmeyi bul
-            try:
-                best_match = max(similar_memories, key=lambda x: x["similarity"])
-                return best_match["response"], best_match["similarity"]
-            except Exception as e:
-                logger.error(f"Eşleşme bulma hatası: {str(e)}")
-                return ERRORS["response_error"], 0.0
+            return response, 0.5  # Yeni yanıt için varsayılan güven skoru
             
         except Exception as e:
             logger.error(f"Mesaj işleme hatası: {str(e)}")
