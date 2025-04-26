@@ -18,6 +18,8 @@ class ChatPanel:
     def clear_messages(self):
         """Mesaj geçmişini temizle"""
         st.session_state.messages = []
+        st.session_state.user_input = ""  # Input alanını da temizle
+        st.success("Mesaj geçmişi temizlendi!")
         st.rerun()
         
     def _type_message_slowly(self, text: str, delay: float = 0.1):
@@ -161,10 +163,12 @@ class ChatPanel:
             background: #f0f2f5 !important;
             color: #1c1e21 !important;
             border: 1px solid #e4e6eb !important;
+            margin-left: 8px !important;
         }
         
         .clear-button:hover {
             background: #e4e6eb !important;
+            transform: translateY(-2px);
         }
         </style>
         """, unsafe_allow_html=True)
@@ -194,15 +198,17 @@ class ChatPanel:
         # Mesaj girişi ve butonlar
         st.markdown("<div class='main-container'>", unsafe_allow_html=True)
         
+        # Butonları yan yana yerleştir
         col1, col2, col3 = st.columns([4, 1, 1])
         with col1:
             user_input = st.text_input("Mesajınızı yazın...", key="user_input")
         with col2:
-            if st.button("Gönder", use_container_width=True):
+            if st.button("Gönder", use_container_width=True, key="send_button"):
                 if user_input and not st.session_state.is_processing:
                     self._process_user_input(user_input)
         with col3:
-            if st.button("Temizle", use_container_width=True, key="clear_button"):
+            if st.button("Temizle", use_container_width=True, key="clear_button", 
+                        help="Mesaj geçmişini temizler"):
                 self.clear_messages()
                 
         st.markdown("</div>", unsafe_allow_html=True)
