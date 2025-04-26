@@ -551,11 +551,46 @@ class CloudAI:
             return False
 
     def sync_delete_training_data(self, id: int) -> bool:
-        """Senkron olarak eğitim verisini siler."""
+        """Eğitim verisini sil"""
         try:
-            return self.run_async(self.delete_training_data(id))
+            return self.memory_manager.delete_memory(id)
         except Exception as e:
-            logger.error(f"Senkron silme hatası: {str(e)}")
+            logger.error(f"Eğitim verisi silinirken hata: {str(e)}")
+            return False
+
+    def sync_login(self, username: str, password: str) -> bool:
+        """Kullanıcı girişi yap"""
+        try:
+            # Supabase auth ile giriş yap
+            auth_response = self.supabase.auth.sign_in_with_password({
+                "email": username,
+                "password": password
+            })
+            
+            if auth_response and hasattr(auth_response.user, 'id'):
+                st.session_state.token = auth_response.session.access_token
+                st.session_state.user_id = auth_response.user.id
+                st.session_state.is_authenticated = True
+                return True
+            return False
+        except Exception as e:
+            logger.error(f"Giriş hatası: {str(e)}")
+            return False
+
+    def sync_register(self, username: str, password: str) -> bool:
+        """Yeni kullanıcı kaydı"""
+        try:
+            # Supabase auth ile kayıt ol
+            auth_response = self.supabase.auth.sign_up({
+                "email": username,
+                "password": password
+            })
+            
+            if auth_response and hasattr(auth_response.user, 'id'):
+                return True
+            return False
+        except Exception as e:
+            logger.error(f"Kayıt hatası: {str(e)}")
             return False
 
     def test_training(self):
