@@ -458,13 +458,21 @@ class CloudAI:
                 return ERRORS["input_error"], 0.0
                 
             # Mesajı vektöre dönüştür
-            message_embedding = self.encode_text(processed_message)
+            try:
+                message_embedding = self.encode_text(processed_message)
+            except Exception as e:
+                logger.error(f"Vektör dönüşümü hatası: {str(e)}")
+                return ERRORS["response_error"], 0.0
             
             # Hafızada benzer mesajları ara
-            similar_memories = self.memory_manager.find_similar_memories(
-                message_embedding,
-                threshold=self.confidence_threshold
-            )
+            try:
+                similar_memories = self.memory_manager.find_similar_memories(
+                    message_embedding,
+                    threshold=self.confidence_threshold
+                )
+            except Exception as e:
+                logger.error(f"Bellek arama hatası: {str(e)}")
+                return ERRORS["memory_error"], 0.0
             
             # Eğer benzer mesaj bulunamazsa
             if not similar_memories:
@@ -481,10 +489,12 @@ class CloudAI:
                     return ERRORS["input_error"], 0.0
             
             # En iyi eşleşmeyi bul
-            best_match = max(similar_memories, key=lambda x: x["similarity"])
-            
-            # Yanıtı döndür
-            return best_match["response"], best_match["similarity"]
+            try:
+                best_match = max(similar_memories, key=lambda x: x["similarity"])
+                return best_match["response"], best_match["similarity"]
+            except Exception as e:
+                logger.error(f"Eşleşme bulma hatası: {str(e)}")
+                return ERRORS["response_error"], 0.0
             
         except Exception as e:
             logger.error(f"Mesaj işleme hatası: {str(e)}")
