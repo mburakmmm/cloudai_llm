@@ -132,7 +132,7 @@ class LoginPanel:
             st.markdown("<div class='main-container'>", unsafe_allow_html=True)
             
             # Giriş formu
-            username = st.text_input("Kullanıcı Adı", key="login_username")
+            email = st.text_input("E-posta", key="login_email")
             password = st.text_input("Şifre", type="password", key="login_password")
             
             col1, col2 = st.columns(2)
@@ -144,29 +144,29 @@ class LoginPanel:
             st.markdown("</div>", unsafe_allow_html=True)
             
             if login:
-                if not username or not password:
-                    st.error("Lütfen kullanıcı adı ve şifre girin.")
+                if not email or not password:
+                    st.error("Lütfen e-posta ve şifre girin.")
                     return
                     
                 try:
-                    success = self.app.cloud_ai.sync_login(username, password)
+                    success = self.app.cloud_ai.sync_login(email, password)
                     if success:
                         st.success("Giriş başarılı!")
                         st.session_state.logged_in = True
-                        st.session_state.username = username
+                        st.session_state.email = email
                         st.rerun()
                     else:
-                        st.error("Geçersiz kullanıcı adı veya şifre.")
+                        st.error("Geçersiz e-posta veya şifre.")
                 except Exception as e:
                     st.error(f"Giriş sırasında bir hata oluştu: {str(e)}")
                     
             if register:
-                if not username or not password:
-                    st.error("Lütfen kullanıcı adı ve şifre girin.")
+                if not email or not password:
+                    st.error("Lütfen e-posta ve şifre girin.")
                     return
                     
                 try:
-                    success = self.app.cloud_ai.sync_register(username, password)
+                    success = self.app.cloud_ai.sync_register(email, password)
                     if success:
                         st.success("Kayıt başarılı! Giriş yapabilirsiniz.")
                     else:
