@@ -296,43 +296,66 @@ class ChatPanel:
                 
         st.markdown("</div>", unsafe_allow_html=True)
                 
-    def _process_user_input(self, user_input: str):
+    def _process_user_input(self, message: str):
         """Kullanıcı mesajını işle"""
         try:
             st.session_state.is_processing = True
             
             # Kullanıcı mesajını ekle
-            st.session_state.messages.append({"role": "user", "content": user_input})
+            st.session_state.messages.append({"role": "user", "content": message})
             
-            # AI yanıtını al
-            response, confidence = self.cloud_ai.sync_process_message(user_input)
-            
-            # AI yanıtını yavaşça yaz
-            placeholder = st.empty()
-            current_text = ""
-            
-            # Yanıtı karakter karakter ekle
-            for i in range(len(response) + 1):
-                current_text = response[:i]
-                placeholder.markdown(f'''
+            # Mesaj geçmişini güncelle
+            for msg in st.session_state.messages:
+                if msg["role"] == "user":
+                    st.markdown(f'''
+                    <div class="message user-message">
+                        <div class="message-content">
+                            <div class="username">Siz</div>
+                            {msg["content"]}
+                        </div>
+                    </div>
+                    ''', unsafe_allow_html=True)
+                else:
+                    st.markdown(f'''
                     <div class="message cloud-message">
                         <div class="cloud-icon">🤖</div>
                         <div class="message-content">
                             <div class="username">Cloud AI</div>
-                            {current_text}
+                            {msg["content"]}
+                        </div>
+                    </div>
+                    ''', unsafe_allow_html=True)
+            
+            # AI yanıtını al
+            response, confidence = self.cloud_ai.sync_process_message(message)
+            
+            if response:
+                # Yanıtı karakter karakter göster
+                message_placeholder = st.empty()
+                partial_response = ""
+                for char in response:
+                    partial_response += char
+                    message_placeholder.markdown(f'''
+                    <div class="message cloud-message">
+                        <div class="cloud-icon">🤖</div>
+                        <div class="message-content">
+                            <div class="username">Cloud AI</div>
+                            {partial_response}
                             <div class="typing-cursor">|</div>
                         </div>
                     </div>
-                ''', unsafe_allow_html=True)
-                # Hafif bir gecikme için st.empty() kullan
-                st.empty()
-            
-            # Son yanıtı session state'e ekle
-            st.session_state.messages.append({"role": "assistant", "content": response})
+                    ''', unsafe_allow_html=True)
+                    st.empty()  # Hafif gecikme için
+                
+                # Yanıtı session state'e ekle
+                st.session_state.messages.append({"role": "assistant", "content": response})
+                
+                # Input alanını temizle
+                st.session_state.user_input = ""
             
         except Exception as e:
             logger.error(f"Mesaj işleme hatası: {str(e)}")
-            st.error("Mesaj işlenirken bir hata oluştu. Lütfen tekrar deneyin.")
+            st.error("Yanıt oluşturulurken bir hata oluştu. Lütfen tekrar deneyin.")
         finally:
             st.session_state.is_processing = False
             st.rerun()
