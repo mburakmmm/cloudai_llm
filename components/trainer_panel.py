@@ -29,10 +29,10 @@ class TrainerPanel:
             st.markdown("### Yeni Eğitim Verisi Ekle")
             
             # Zorunlu alanlar
-            prompt = st.text_area("Prompt (Zorunlu)", height=100)
-            response = st.text_area("Response (Zorunlu)", height=150)
-            intent = st.text_input("Intent (Zorunlu)")
-            tags = st.text_input("Tags (Zorunlu)", help="Virgülle ayırarak birden fazla tag ekleyebilirsiniz")
+            prompt = st.text_area("Prompt (Zorunlu)", height=100, value=st.session_state.current_prompt)
+            response = st.text_area("Response (Zorunlu)", height=150, value=st.session_state.current_response)
+            intent = st.text_input("Intent (Zorunlu)", value=st.session_state.current_intent)
+            tags = st.text_input("Tags (Zorunlu)", value=st.session_state.current_tag, help="Virgülle ayırarak birden fazla tag ekleyebilirsiniz")
             
             # Opsiyonel alanlar
             col1, col2 = st.columns(2)
@@ -69,7 +69,8 @@ class TrainerPanel:
                         st.session_state.current_response = ""
                         st.session_state.current_intent = ""
                         st.session_state.current_tag = ""
-                        st.rerun()  # Formu yeniden yükle
+                        # Form alanlarını temizle
+                        st.experimental_rerun()
                     else:
                         st.error("Eğitim verisi eklenirken bir hata oluştu.")
                         
