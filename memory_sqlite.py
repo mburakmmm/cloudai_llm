@@ -32,6 +32,7 @@ class SQLiteMemoryManager:
                         intent TEXT DEFAULT 'genel',
                         context_message TEXT,
                         category TEXT DEFAULT 'genel',
+                        emotion TEXT DEFAULT 'neutral',
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                         usage_count INTEGER DEFAULT 0,
                         last_used TIMESTAMP,
@@ -45,6 +46,9 @@ class SQLiteMemoryManager:
                 
                 if 'embedding' not in columns:
                     cursor.execute('ALTER TABLE memories ADD COLUMN embedding BLOB')
+                
+                if 'emotion' not in columns:
+                    cursor.execute('ALTER TABLE memories ADD COLUMN emotion TEXT DEFAULT "neutral"')
                 
                 conn.commit()
                 logger.debug("Database tables created/checked successfully")
@@ -64,8 +68,8 @@ class SQLiteMemoryManager:
                     embedding_blob = memory_data["embedding"].tobytes()
                 
                 cursor.execute("""
-                    INSERT INTO memories (prompt, response, embedding, tags, priority, intent, context_message, category)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO memories (prompt, response, embedding, tags, priority, intent, context_message, category, emotion)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     memory_data["prompt"],
                     memory_data["response"],
@@ -74,7 +78,8 @@ class SQLiteMemoryManager:
                     memory_data.get("priority", 1),
                     memory_data.get("intent", "genel"),
                     memory_data.get("context_message", ""),
-                    memory_data.get("category", "genel")
+                    memory_data.get("category", "genel"),
+                    memory_data.get("emotion", "neutral")
                 ))
                 conn.commit()
                 last_id = cursor.lastrowid

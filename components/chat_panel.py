@@ -250,9 +250,6 @@ class ChatPanel:
             if response:
                 # Yanıtı session state'e ekle
                 st.session_state.messages.append({"role": "assistant", "content": response})
-                
-                # Input alanını temizle
-                st.session_state.user_input = ""
             
         except Exception as e:
             logger.error(f"Mesaj işleme hatası: {str(e)}")
