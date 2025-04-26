@@ -676,13 +676,16 @@ class CloudAI:
                 "response": response,
                 "embedding": message_embedding,
                 "intent": intent,
-                "emotion": emotion_data["emotion"],
+                "emotion": emotion_data,
                 "created_at": datetime.now().isoformat()
             }
             
             self.memory_manager.add_memory(memory_data)
             
-            return response, emotion_data["confidence"]
+            # Duygu yoğunluğunu güven skoru olarak kullan
+            confidence = abs(emotion_data.get("intensity", 0.0))
+            
+            return response, confidence
             
         except Exception as e:
             logger.error(f"Mesaj işleme hatası: {str(e)}")
