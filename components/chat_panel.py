@@ -309,22 +309,25 @@ class ChatPanel:
             
             # AI yanıtını yavaşça yaz
             placeholder = st.empty()
-            full_text = ""
-            for char in response:
-                full_text += char
+            current_text = ""
+            
+            # Yanıtı karakter karakter ekle
+            for i in range(len(response) + 1):
+                current_text = response[:i]
                 placeholder.markdown(f'''
                     <div class="message cloud-message">
                         <div class="cloud-icon">🤖</div>
                         <div class="message-content">
                             <div class="username">Cloud AI</div>
-                            {full_text}
+                            {current_text}
                             <div class="typing-cursor">|</div>
                         </div>
                     </div>
                 ''', unsafe_allow_html=True)
-                time.sleep(0.05)
+                # Hafif bir gecikme için st.empty() kullan
+                st.empty()
             
-            # Mesajı session state'e ekle
+            # Son yanıtı session state'e ekle
             st.session_state.messages.append({"role": "assistant", "content": response})
             
         except Exception as e:
