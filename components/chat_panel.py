@@ -220,13 +220,12 @@ class ChatPanel:
             with col1:
                 user_input = st.text_input(
                     "Mesajınızı yazın...",
-                    key="user_input",
-                    on_change=self._on_enter_pressed
+                    key="user_input"
                 )
             with col2:
-                submit_button = st.form_submit_button("Gönder", use_container_width=True)
+                submit_button = st.form_submit_button("Gönder")
             with col3:
-                clear_button = st.form_submit_button("Temizle", use_container_width=True)
+                clear_button = st.form_submit_button("Temizle")
             
             if submit_button and user_input and not st.session_state.is_processing:
                 self._process_user_input(user_input)
@@ -236,12 +235,6 @@ class ChatPanel:
         
         st.markdown("</div>", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
-                
-    def _on_enter_pressed(self):
-        """Enter tuşuna basıldığında çalışacak fonksiyon"""
-        if st.session_state.user_input and not st.session_state.is_processing:
-            self._process_user_input(st.session_state.user_input)
-            st.session_state.user_input = ""
 
     def _process_user_input(self, message: str):
         """Kullanıcı mesajını işle"""
