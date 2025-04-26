@@ -304,31 +304,25 @@ class ChatPanel:
             # Kullanıcı mesajını ekle
             st.session_state.messages.append({"role": "user", "content": user_input})
             
-            # Düşünme animasyonu göster
-            thinking = st.empty()
-            thinking.markdown(f'''
-            <div class="thinking-container">
-                <div class="cloud-icon">🤖</div>
-                <div class="message-content">
-                    <div class="username">Cloud AI</div>
-                    Düşünüyorum
-                    <div class="thinking-dots">
-                        <div class="thinking-dot"></div>
-                        <div class="thinking-dot"></div>
-                        <div class="thinking-dot"></div>
-                    </div>
-                </div>
-            </div>
-            ''', unsafe_allow_html=True)
-            
             # AI yanıtını al
             response, confidence = self.cloud_ai.sync_process_message(user_input)
             
-            # Düşünme animasyonunu kaldır
-            thinking.empty()
-            
             # AI yanıtını yavaşça yaz
-            self._type_message_slowly(response)
+            placeholder = st.empty()
+            full_text = ""
+            for char in response:
+                full_text += char
+                placeholder.markdown(f'''
+                    <div class="message cloud-message">
+                        <div class="cloud-icon">🤖</div>
+                        <div class="message-content">
+                            <div class="username">Cloud AI</div>
+                            {full_text}
+                            <div class="typing-cursor">|</div>
+                        </div>
+                    </div>
+                ''', unsafe_allow_html=True)
+                time.sleep(0.05)
             
             # Mesajı session state'e ekle
             st.session_state.messages.append({"role": "assistant", "content": response})
