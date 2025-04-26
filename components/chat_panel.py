@@ -50,6 +50,9 @@ class ChatPanel:
             max-width: 800px;
             margin: 0 auto;
             padding: 20px;
+            height: calc(100vh - 200px);
+            display: flex;
+            flex-direction: column;
         }
         
         /* Mesaj balonları */
@@ -61,6 +64,8 @@ class ChatPanel:
             line-height: 1.5;
             font-size: 16px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: relative;
+            word-wrap: break-word;
         }
         
         /* Kullanıcı mesajı */
@@ -134,6 +139,7 @@ class ChatPanel:
             padding: 12px;
             font-size: 16px;
             transition: all 0.2s ease;
+            width: 100%;
         }
         
         .stTextInput > div > div > input:focus {
@@ -170,9 +176,58 @@ class ChatPanel:
             background: #e4e6eb !important;
             transform: translateY(-2px);
         }
+        
+        /* Mobil uyumluluk */
+        @media (max-width: 768px) {
+            .main-container {
+                padding: 10px;
+                height: calc(100vh - 150px);
+            }
+            
+            .message {
+                max-width: 90%;
+                font-size: 14px;
+                padding: 10px 14px;
+            }
+            
+            .stTextInput > div > div > input {
+                padding: 10px;
+                font-size: 14px;
+            }
+            
+            .stButton > button {
+                padding: 10px 20px;
+                font-size: 14px;
+            }
+            
+            .username {
+                font-size: 12px;
+            }
+        }
+        
+        /* Mesaj geçmişi container */
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            margin-bottom: 20px;
+            scroll-behavior: smooth;
+        }
+        
+        /* Input container */
+        .input-container {
+            position: sticky;
+            bottom: 0;
+            background: white;
+            padding: 10px 0;
+            border-top: 1px solid #e4e6eb;
+        }
         </style>
         """, unsafe_allow_html=True)
 
+        # Mesaj geçmişi container
+        st.markdown("<div class='messages-container'>", unsafe_allow_html=True)
+        
         # Mesaj geçmişini göster
         for message in st.session_state.messages:
             if message["role"] == "user":
@@ -194,9 +249,11 @@ class ChatPanel:
                     </div>
                 </div>
                 ''', unsafe_allow_html=True)
+                
+        st.markdown("</div>", unsafe_allow_html=True)
 
-        # Mesaj girişi ve butonlar
-        st.markdown("<div class='main-container'>", unsafe_allow_html=True)
+        # Input container
+        st.markdown("<div class='input-container'>", unsafe_allow_html=True)
         
         # Butonları yan yana yerleştir
         col1, col2, col3 = st.columns([4, 1, 1])
