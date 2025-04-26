@@ -68,17 +68,13 @@ class SQLiteMemoryManager:
                     embedding_blob = memory_data["embedding"].tobytes()
                 
                 cursor.execute("""
-                    INSERT INTO memories (prompt, response, embedding, tags, priority, intent, context_message, category, emotion)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO memories (prompt, response, embedding, intent, emotion)
+                    VALUES (?, ?, ?, ?, ?)
                 """, (
                     memory_data["prompt"],
                     memory_data["response"],
                     embedding_blob,
-                    json.dumps(memory_data.get("tags", [])),
-                    memory_data.get("priority", 1),
                     memory_data.get("intent", "genel"),
-                    memory_data.get("context_message", ""),
-                    memory_data.get("category", "genel"),
                     memory_data.get("emotion", "neutral")
                 ))
                 conn.commit()
