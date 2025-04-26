@@ -482,79 +482,197 @@ class CloudAI:
             return {"emotion": "neutral", "intensity": 0.0, "emoji": "😐"}
 
     def update_context(self, message: str, intent: str = None):
-        """Konuşma bağlamını güncelle"""
+        """Konuşma bağlamını akıllı bir şekilde güncelle"""
         try:
-            # Mevcut konuyu kaydet
-            if self.conversation_context["current_topic"]:
-                self.conversation_context["previous_topics"].append({
-                    "topic": self.conversation_context["current_topic"],
-                    "timestamp": datetime.now().isoformat()
-                })
+            current_time = datetime.now()
+            
+            # Konu değişikliği tespiti
+            topic_changed = False
+            if intent and self.conversation_context["current_topic"] != intent:
+                topic_changed = True
+                self.conversation_context["topic_switch_count"] += 1
+                self.conversation_context["last_topic_switch_time"] = current_time.isoformat()
+                
+                # Önceki konuyu kaydet
+                if self.conversation_context["current_topic"]:
+                    self.conversation_context["previous_topics"].append({
+                        "topic": self.conversation_context["current_topic"],
+                        "duration": (current_time - datetime.fromisoformat(self.conversation_context["last_topic_switch_time"])).seconds,
+                        "messages_count": len([m for m in self.conversation_context["context_window"] 
+                                            if m["topic"] == self.conversation_context["current_topic"]]),
+                        "timestamp": current_time.isoformat()
+                    })
             
             # Yeni konuyu belirle
             self.conversation_context["current_topic"] = intent or "genel"
+            
+            # Konu geçmişini güncelle
             self.conversation_context["topic_history"].append({
                 "topic": self.conversation_context["current_topic"],
                 "message": message,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": current_time.isoformat(),
+                "topic_changed": topic_changed
             })
             
             # Bağlam penceresini güncelle
-            self.conversation_context["context_window"].append({
+            new_context = {
                 "message": message,
                 "topic": self.conversation_context["current_topic"],
-                "timestamp": datetime.now().isoformat()
-            })
+                "timestamp": current_time.isoformat(),
+                "topic_changed": topic_changed
+            }
             
-            # Bağlam penceresini sınırla
+            # Soru kontrolü
+            if any(q in message.lower() for q in ["?", "mi", "mı", "mu", "mü", "ne", "nasıl", "neden", "kim"]):
+                self.conversation_context["last_question"] = new_context
+                self.conversation_context["pending_questions"].append(new_context)
+            
+            # Bağlam penceresini güncelle ve sınırla
+            self.conversation_context["context_window"].append(new_context)
             if len(self.conversation_context["context_window"]) > 5:
                 self.conversation_context["context_window"].pop(0)
+                
+            # Konuşma akışını analiz et
+            self.conversation_context["conversation_flow"].append({
+                "timestamp": current_time.isoformat(),
+                "topic": self.conversation_context["current_topic"],
+                "topic_changed": topic_changed,
+                "message_type": "question" if "?" in message else "statement",
+                "context_size": len(self.conversation_context["context_window"])
+            })
+            
+            # Kullanıcı tercihlerini güncelle
+            if topic_changed:
+                self.user_preferences["favorite_topics"].add(self.conversation_context["current_topic"])
+                self.user_preferences["interaction_count"] += 1
+                self.user_preferences["last_interaction_time"] = current_time.isoformat()
                 
         except Exception as e:
             logger.error(f"Bağlam güncelleme hatası: {str(e)}")
 
     def generate_response(self, message: str, intent: str = None) -> str:
-        """Mesaja uygun yanıt oluştur"""
+        """Mesaja uygun akıllı yanıt oluştur"""
         try:
-            # Duygu analizi yap
+            # Duygu analizi
             emotion_data = self.analyze_emotion(message)
+            current_emotion = emotion_data["emotion"]
+            emotion_intensity = emotion_data["intensity"]
             
-            # Bağlamı güncelle
+            # Bağlam analizi
             self.update_context(message, intent)
+            context_window = self.conversation_context["context_window"]
+            current_topic = self.conversation_context["current_topic"]
             
-            # Intent belirleme
-            if not intent:
-                intent = predict_intent(message)
+            # Kullanıcı tercihleri analizi
+            user_style = self.user_preferences["response_style"]
+            favorite_topics = self.user_preferences["favorite_topics"]
             
-            # Yanıt oluştur
-            if intent == "selamlaşma":
-                if emotion_data["emotion"] == "mutluluk":
-                    return f"Merhaba! {emotion_data['emoji']} Size nasıl yardımcı olabilirim?"
-                else:
-                    return "Merhaba! Size nasıl yardımcı olabilirim?"
-            elif intent == "hal_hatır":
-                if emotion_data["emotion"] == "mutluluk":
-                    return f"Çok iyiyim, teşekkür ederim! {emotion_data['emoji']} Siz nasılsınız?"
-                elif emotion_data["emotion"] == "üzüntü":
-                    return f"İyiyim, teşekkürler. Siz iyi görünmüyorsunuz, bir şey mi oldu? {emotion_data['emoji']}"
-                else:
-                    return "İyiyim, teşekkür ederim. Siz nasılsınız?"
-            elif intent == "teşekkür":
-                if emotion_data["emotion"] == "mutluluk":
-                    return f"Rica ederim! {emotion_data['emoji']}"
-                else:
-                    return "Rica ederim!"
+            # Yanıt önceliği belirleme
+            response_priority = {
+                "context_match": 0.4,
+                "emotion_match": 0.3,
+                "intent_match": 0.2,
+                "user_preference": 0.1
+            }
+            
+            best_response = None
+            max_score = 0
+            
+            # Öğrenme sisteminden yanıtları değerlendir
+            for pattern, response in self.learning_system["response_patterns"].items():
+                score = 0
+                
+                # Bağlam uyumu
+                if any(c["topic"] == current_topic for c in context_window):
+                    score += response_priority["context_match"]
+                    
+                # Duygu uyumu
+                response_emotion = self.analyze_emotion(response)
+                if response_emotion["emotion"] == current_emotion:
+                    score += response_priority["emotion_match"]
+                    
+                # Intent uyumu
+                if intent and intent in pattern:
+                    score += response_priority["intent_match"]
+                    
+                # Kullanıcı tercihleri
+                if current_topic in favorite_topics:
+                    score += response_priority["user_preference"]
+                    
+                if score > max_score:
+                    max_score = score
+                    best_response = response
+            
+            # En iyi yanıtı seç veya yeni yanıt oluştur
+            if best_response and max_score > 0.5:
+                base_response = best_response
             else:
-                # Öğrenme sisteminden yanıt bul
-                for pattern, response in self.learning_system["response_patterns"].items():
-                    if pattern in message.lower():
-                        return response
-                
-                return "Üzgünüm, bu konuda yardımcı olamıyorum."
-                
+                # Temel yanıtları oluştur
+                if intent == "selamlaşma":
+                    base_response = self._generate_greeting(emotion_data)
+                elif intent == "hal_hatır":
+                    base_response = self._generate_wellbeing_response(emotion_data)
+                elif intent == "teşekkür":
+                    base_response = self._generate_gratitude_response(emotion_data)
+                else:
+                    base_response = "Üzgünüm, bu konuda yardımcı olamıyorum."
+            
+            # Yanıtı kişiselleştir
+            final_response = self._personalize_response(base_response, user_style, emotion_data)
+            
+            # Yanıtı öğrenme sistemine ekle
+            self.learning_system["response_patterns"][message.lower()] = final_response
+            
+            return final_response
+            
         except Exception as e:
             logger.error(f"Yanıt oluşturma hatası: {str(e)}")
             return ERRORS["response_error"]
+        
+    def _generate_greeting(self, emotion_data: dict) -> str:
+        """Selamlaşma yanıtı oluştur"""
+        if emotion_data["emotion"] == "mutluluk":
+            return f"Merhaba! {emotion_data['emoji']} Harika bir gün, değil mi? Size nasıl yardımcı olabilirim?"
+        elif emotion_data["emotion"] == "üzüntü":
+            return f"Merhaba... {emotion_data['emoji']} Üzgün görünüyorsunuz, bir şey mi oldu?"
+        else:
+            return "Merhaba! Size nasıl yardımcı olabilirim?"
+
+    def _generate_wellbeing_response(self, emotion_data: dict) -> str:
+        """Hal hatır yanıtı oluştur"""
+        if emotion_data["emotion"] == "mutluluk":
+            return f"Ben de çok iyiyim! {emotion_data['emoji']} Mutluluğunuz bana da yansıdı!"
+        elif emotion_data["emotion"] == "üzüntü":
+            return f"İyiyim, teşekkürler. Ama sizi üzgün görmek beni de üzdü {emotion_data['emoji']} Paylaşmak ister misiniz?"
+        else:
+            return "İyiyim, teşekkür ederim. Siz nasılsınız?"
+
+    def _generate_gratitude_response(self, emotion_data: dict) -> str:
+        """Teşekkür yanıtı oluştur"""
+        if emotion_data["emotion"] == "mutluluk":
+            return f"Rica ederim! {emotion_data['emoji']} Size yardımcı olabildiğime çok sevindim!"
+        else:
+            return "Rica ederim! Her zaman yardımcı olmaktan mutluluk duyarım."
+
+    def _personalize_response(self, response: str, style: str, emotion_data: dict) -> str:
+        """Yanıtı kişiselleştir"""
+        try:
+            if style == "formal":
+                response = response.replace("!", ".")
+                response = response.replace("merhaba", "iyi günler")
+            elif style == "casual":
+                response = response.replace("iyi günler", "selam")
+                response = response.replace(".", "!")
+            
+            # Emoji ekle
+            if emotion_data["intensity"] > 0.5:
+                response += f" {emotion_data['emoji']}"
+            
+            return response
+            
+        except Exception as e:
+            logger.error(f"Yanıt kişiselleştirme hatası: {str(e)}")
+            return response
 
     def sync_process_message(self, message: str) -> tuple[str, float]:
         """Mesajı işle ve yanıt döndür"""
@@ -767,4 +885,159 @@ class CloudAI:
         except Exception as e:
             logger.error(f"Eğitim verisi eklenirken hata: {str(e)}")
             return False
+
+    def update_learning_system(self, message: str, response: str, feedback: float = None):
+        """Öğrenme sistemini güncelle"""
+        try:
+            current_time = datetime.now()
+            
+            # Kelime kalıplarını güncelle
+            words = message.lower().split()
+            for word in words:
+                if word not in self.learning_system["word_patterns"]:
+                    self.learning_system["word_patterns"][word] = {
+                        "count": 0,
+                        "contexts": set(),
+                        "responses": set()
+                    }
+                self.learning_system["word_patterns"][word]["count"] += 1
+                self.learning_system["word_patterns"][word]["contexts"].add(self.conversation_context["current_topic"])
+                self.learning_system["word_patterns"][word]["responses"].add(response)
+            
+            # Yanıt kalıplarını güncelle
+            if message.lower() not in self.learning_system["response_patterns"]:
+                self.learning_system["response_patterns"][message.lower()] = response
+            
+            # Konu geçişlerini güncelle
+            if len(self.conversation_context["topic_history"]) > 1:
+                prev_topic = self.conversation_context["topic_history"][-2]["topic"]
+                curr_topic = self.conversation_context["topic_history"][-1]["topic"]
+                
+                if prev_topic != curr_topic:
+                    transition_key = f"{prev_topic}->{curr_topic}"
+                    if transition_key not in self.learning_system["topic_transitions"]:
+                        self.learning_system["topic_transitions"][transition_key] = {
+                            "count": 0,
+                            "success_rate": 0.0,
+                            "last_used": None
+                        }
+                    self.learning_system["topic_transitions"][transition_key]["count"] += 1
+                    self.learning_system["topic_transitions"][transition_key]["last_used"] = current_time.isoformat()
+            
+            # Kullanıcı alışkanlıklarını güncelle
+            topic = self.conversation_context["current_topic"]
+            if topic not in self.learning_system["user_habits"]["topics"]:
+                self.learning_system["user_habits"]["topics"][topic] = {
+                    "count": 0,
+                    "avg_duration": 0,
+                    "success_rate": 0.0,
+                    "last_used": None
+                }
+            
+            self.learning_system["user_habits"]["topics"][topic]["count"] += 1
+            self.learning_system["user_habits"]["topics"][topic]["last_used"] = current_time.isoformat()
+            
+            # Duygu durumunu güncelle
+            emotion = self.emotion_history["current_emotion"]
+            if emotion not in self.learning_system["user_habits"]["emotions"]:
+                self.learning_system["user_habits"]["emotions"][emotion] = {
+                    "count": 0,
+                    "triggers": set(),
+                    "responses": set()
+                }
+            
+            self.learning_system["user_habits"]["emotions"][emotion]["count"] += 1
+            self.learning_system["user_habits"]["emotions"][emotion]["triggers"].add(message.lower())
+            self.learning_system["user_habits"]["emotions"][emotion]["responses"].add(response)
+            
+            # Zaman kalıplarını güncelle
+            hour = current_time.hour
+            if hour not in self.learning_system["user_habits"]["time_patterns"]:
+                self.learning_system["user_habits"]["time_patterns"][hour] = {
+                    "count": 0,
+                    "topics": set(),
+                    "emotions": set()
+                }
+            
+            self.learning_system["user_habits"]["time_patterns"][hour]["count"] += 1
+            self.learning_system["user_habits"]["time_patterns"][hour]["topics"].add(topic)
+            self.learning_system["user_habits"]["time_patterns"][hour]["emotions"].add(emotion)
+            
+            # Etkileşim sayısını güncelle
+            self.learning_system["user_habits"]["interaction_count"] += 1
+            
+            # Geri bildirim varsa başarı oranlarını güncelle
+            if feedback is not None:
+                # Konu geçiş başarısını güncelle
+                if len(self.conversation_context["topic_history"]) > 1:
+                    transition_key = f"{prev_topic}->{curr_topic}"
+                    current_success = self.learning_system["topic_transitions"][transition_key]["success_rate"]
+                    new_success = (current_success * (self.learning_system["topic_transitions"][transition_key]["count"] - 1) + feedback) / self.learning_system["topic_transitions"][transition_key]["count"]
+                    self.learning_system["topic_transitions"][transition_key]["success_rate"] = new_success
+                
+                # Konu başarısını güncelle
+                current_success = self.learning_system["user_habits"]["topics"][topic]["success_rate"]
+                topic_count = self.learning_system["user_habits"]["topics"][topic]["count"]
+                new_success = (current_success * (topic_count - 1) + feedback) / topic_count
+                self.learning_system["user_habits"]["topics"][topic]["success_rate"] = new_success
+            
+            # Öğrenme stratejilerini güncelle
+            self._update_learning_strategies()
+            
+        except Exception as e:
+            logger.error(f"Öğrenme sistemi güncelleme hatası: {str(e)}")
+
+    def _update_learning_strategies(self):
+        """Öğrenme stratejilerini güncelle"""
+        try:
+            # Başarılı yanıt kalıplarını belirle
+            successful_patterns = {}
+            for topic, data in self.learning_system["user_habits"]["topics"].items():
+                if data["success_rate"] > self.learning_system["adaptation_threshold"]:
+                    successful_patterns[topic] = {
+                        "success_rate": data["success_rate"],
+                        "count": data["count"]
+                    }
+            
+            # Başarılı kalıpları öğrenme stratejilerine ekle
+            self.learning_system["meta"]["learning_strategies"] = successful_patterns
+            
+            # Adaptasyon kurallarını güncelle
+            self.learning_system["meta"]["adaptation_rules"] = {
+                "min_success_rate": self.learning_system["adaptation_threshold"],
+                "min_interaction_count": 5,
+                "learning_rate": self.learning_system["learning_rate"]
+            }
+            
+            # Performans metriklerini güncelle
+            total_success = sum(data["success_rate"] * data["count"] for data in self.learning_system["user_habits"]["topics"].values())
+            total_count = sum(data["count"] for data in self.learning_system["user_habits"]["topics"].values())
+            
+            if total_count > 0:
+                avg_success = total_success / total_count
+            else:
+                avg_success = 0.0
+                
+            self.learning_system["meta"]["performance_metrics"] = {
+                "average_success_rate": avg_success,
+                "total_interactions": total_count,
+                "successful_patterns_count": len(successful_patterns)
+            }
+            
+        except Exception as e:
+            logger.error(f"Öğrenme stratejileri güncelleme hatası: {str(e)}")
+
+    def get_learning_stats(self) -> dict:
+        """Öğrenme sistemi istatistiklerini getir"""
+        try:
+            return {
+                "total_interactions": self.learning_system["user_habits"]["interaction_count"],
+                "known_patterns": len(self.learning_system["word_patterns"]),
+                "topic_transitions": len(self.learning_system["topic_transitions"]),
+                "average_success": self.learning_system["meta"]["performance_metrics"]["average_success_rate"],
+                "successful_patterns": self.learning_system["meta"]["performance_metrics"]["successful_patterns_count"]
+            }
+        except Exception as e:
+            logger.error(f"Öğrenme istatistikleri getirme hatası: {str(e)}")
+            return {}
 
