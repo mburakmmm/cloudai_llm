@@ -29,216 +29,147 @@ class LoginPanel:
             st.session_state.show_register = False
     
     def render(self):
-        # Dark mode kontrolü
-        is_dark_mode = st.session_state.get('dark_mode', False)
+        st.title("Cloud AI Giriş")
         
-        st.markdown(f"""
+        # CSS stilleri
+        st.markdown("""
         <style>
-        /* Ana container stili */
-        .main-container {{
-            max-width: 500px;
+        /* Ana container */
+        .main-container {
+            max-width: 400px;
             margin: 0 auto;
-            padding: 2rem;
-        }}
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
         
-        /* Cloud başlık stili */
-        .cloud-header {{
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 2rem;
-            background: linear-gradient(135deg, #0084ff, #00c6ff);
-            padding: 1.5rem;
-            border-radius: 15px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }}
+        /* Form alanları */
+        .stTextInput > div > div > input {
+            background-color: #ffffff !important;
+            color: #2c3e50 !important;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 16px;
+            transition: all 0.2s ease;
+        }
         
-        .cloud-icon {{
-            font-size: 3rem;
-            margin-right: 1rem;
-            color: white;
-        }}
+        .stTextInput > div > div > input:focus {
+            border-color: #3498db;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
+        }
         
-        .cloud-title {{
-            font-size: 2.5rem;
-            font-weight: bold;
-            color: white;
-        }}
-        
-        /* Tab container stili */
-        .stTabs {{
-            background-color: {is_dark_mode and '#1E1E1E' or 'white'};
-            padding: 2rem;
-            border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }}
-        
-        /* Form container stili */
-        .form-container {{
-            background-color: {is_dark_mode and '#1E1E1E' or 'white'};
-            padding: 2rem;
-            border-radius: 15px;
-            margin-top: 1rem;
-        }}
-        
-        /* Input field stili */
-        .stTextInput > div > div > input {{
-            border: 2px solid {is_dark_mode and '#3E3E3E' or '#e0e0e0'};
-            border-radius: 10px;
-            padding: 0.75rem;
-            font-size: 1rem;
-            transition: all 0.3s ease;
-            background-color: {is_dark_mode and '#2E2E2E' or 'white'} !important;
-            color: {is_dark_mode and '#FFFFFF' or '#333333'} !important;
-        }}
-        
-        .stTextInput > div > div > input:focus {{
-            border-color: #0084ff;
-            box-shadow: 0 0 0 2px rgba(0, 132, 255, 0.2);
-        }}
-        
-        /* Buton stili */
-        .stButton > button {{
-            width: 100%;
-            padding: 0.75rem;
-            font-size: 1.1rem;
-            font-weight: 600;
-            border-radius: 10px;
-            background: linear-gradient(135deg, #0084ff, #00c6ff);
+        /* Butonlar */
+        .stButton > button {
+            background: linear-gradient(135deg, #3498db, #2980b9);
             color: white;
             border: none;
-            transition: transform 0.2s ease;
-        }}
-        
-        .stButton > button:hover {{
-            transform: translateY(-2px);
-        }}
-        
-        /* Form başlık stili */
-        .form-title {{
-            color: {is_dark_mode and '#FFFFFF' or '#333333'};
-            font-size: 1.5rem;
-            font-weight: 600;
-            margin-bottom: 1.5rem;
-            text-align: center;
-        }}
-        
-        /* Hata mesajı stili */
-        .stAlert {{
-            border-radius: 10px;
-            margin: 1rem 0;
-        }}
-
-        /* Tab seçici stili */
-        .stTabs [data-baseweb="tab-list"] {{
-            background-color: {is_dark_mode and '#2E2E2E' or '#f5f5f5'};
-            border-radius: 10px;
-            padding: 0.5rem;
-        }}
-
-        .stTabs [data-baseweb="tab"] {{
-            color: {is_dark_mode and '#FFFFFF' or '#333333'} !important;
-        }}
-
-        .stTabs [aria-selected="true"] {{
-            background-color: {is_dark_mode and '#3E3E3E' or '#FFFFFF'} !important;
+            padding: 12px 24px;
             border-radius: 8px;
-        }}
-
-        /* Label stili */
-        .stTextInput label {{
-            color: {is_dark_mode and '#FFFFFF' or '#333333'} !important;
-        }}
-
-        /* Placeholder stili */
-        .stTextInput > div > div > input::placeholder {{
-            color: {is_dark_mode and '#666666' or '#999999'} !important;
-        }}
+            font-weight: 500;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+        
+        .stButton > button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        /* Başlık */
+        h1 {
+            color: #2c3e50;
+            font-weight: 600;
+            margin-bottom: 24px;
+        }
+        
+        /* Etiketler */
+        label {
+            color: #34495e;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        
+        /* Hata mesajları */
+        .stAlert {
+            background-color: #fef2f2;
+            border: 1px solid #fee2e2;
+            border-radius: 8px;
+            padding: 12px;
+            margin: 12px 0;
+        }
+        
+        /* Başarı mesajları */
+        .stSuccess {
+            background-color: #f0fdf4;
+            border: 1px solid #dcfce7;
+            border-radius: 8px;
+            padding: 12px;
+            margin: 12px 0;
+        }
+        
+        /* Mobil uyumluluk */
+        @media (max-width: 768px) {
+            .main-container {
+                padding: 16px;
+            }
+            
+            .stTextInput > div > div > input {
+                padding: 10px;
+                font-size: 14px;
+            }
+            
+            .stButton > button {
+                padding: 10px 20px;
+                font-size: 14px;
+            }
+        }
         </style>
         """, unsafe_allow_html=True)
-
-        st.markdown('<div class="main-container">', unsafe_allow_html=True)
         
-        # Cloud başlığı
-        st.markdown("""
-        <div class="cloud-header">
-            <div class="cloud-icon">☁️</div>
-            <div class="cloud-title">Cloud</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        # Giriş/Kayıt sekmeleri
-        tab1, tab2 = st.tabs(["Giriş Yap", "Kaydol"])
-
-        # Giriş sekmesi
-        with tab1:
-            with st.form("login_form", clear_on_submit=True):
-                st.markdown('<p class="form-title">☁️ Cloud\'a Hoş Geldiniz</p>', unsafe_allow_html=True)
-                email = st.text_input("E-posta Adresi", placeholder="ornek@email.com")
-                password = st.text_input("Şifre", type="password", placeholder="••••••••")
-                submit = st.form_submit_button("Giriş Yap")
-                
-                if submit:
-                    if not email or not password:
-                        st.error("Lütfen e-posta ve şifre alanlarını doldurun.")
-                        return
-                        
-                    try:
-                        auth_response = self.supabase.auth.sign_in_with_password({
-                            "email": email,
-                            "password": password
-                        })
-                        
-                        if auth_response and hasattr(auth_response.user, 'id'):
-                            st.session_state.token = auth_response.session.access_token
-                            st.session_state.user_id = auth_response.user.id
-                            st.session_state.is_authenticated = True
-                            st.success("Giriş başarılı! Yönlendiriliyorsunuz...")
-                            st.rerun()
-                        else:
-                            st.error("Giriş başarısız. Lütfen bilgilerinizi kontrol edin.")
-                            
-                    except Exception as e:
-                        logger.error(f"Giriş hatası: {str(e)}")
-                        st.error("Giriş sırasında bir hata oluştu. Lütfen tekrar deneyin.")
-
-        # Kayıt sekmesi
-        with tab2:
-            with st.form("register_form", clear_on_submit=True):
-                st.markdown('<p class="form-title">☁️ Yeni Hesap Oluştur</p>', unsafe_allow_html=True)
-                email = st.text_input("E-posta Adresi", placeholder="ornek@email.com")
-                password = st.text_input("Şifre", type="password", placeholder="••••••••")
-                confirm_password = st.text_input("Şifre Tekrar", type="password", placeholder="••••••••")
-                submit = st.form_submit_button("Kaydol")
-                
-                if submit:
-                    if not email or not password or not confirm_password:
-                        st.error("Lütfen tüm alanları doldurun.")
-                        return
-                        
-                    if password != confirm_password:
-                        st.error("Şifreler eşleşmiyor!")
-                        return
-                        
-                    try:
-                        auth_response = self.supabase.auth.sign_up({
-                            "email": email,
-                            "password": password
-                        })
-                        
-                        if auth_response and hasattr(auth_response.user, 'id'):
-                            st.success("Kayıt başarılı! Lütfen e-posta adresinizi doğrulayın.")
-                            st.info("E-posta doğrulaması yapıldıktan sonra giriş yapabilirsiniz.")
-                        else:
-                            st.error("Kayıt başarısız. Lütfen tekrar deneyin.")
-                            
-                    except Exception as e:
-                        logger.error(f"Kayıt hatası: {str(e)}")
-                        st.error("Kayıt sırasında bir hata oluştu. Lütfen tekrar deneyin.")
+        with st.form("login_form"):
+            st.markdown("<div class='main-container'>", unsafe_allow_html=True)
             
-            # Şifremi Unuttum butonu
-            st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("Şifremi Unuttum", type="secondary"):
-                st.info("Şifre sıfırlama bağlantısı e-posta adresinize gönderilecek.")
-        
-        st.markdown('</div>', unsafe_allow_html=True) 
+            # Giriş formu
+            username = st.text_input("Kullanıcı Adı", key="login_username")
+            password = st.text_input("Şifre", type="password", key="login_password")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                login = st.form_submit_button("Giriş Yap", use_container_width=True)
+            with col2:
+                register = st.form_submit_button("Kayıt Ol", use_container_width=True)
+            
+            st.markdown("</div>", unsafe_allow_html=True)
+            
+            if login:
+                if not username or not password:
+                    st.error("Lütfen kullanıcı adı ve şifre girin.")
+                    return
+                    
+                try:
+                    success = self.app.cloud_ai.sync_login(username, password)
+                    if success:
+                        st.success("Giriş başarılı!")
+                        st.session_state.logged_in = True
+                        st.session_state.username = username
+                        st.rerun()
+                    else:
+                        st.error("Geçersiz kullanıcı adı veya şifre.")
+                except Exception as e:
+                    st.error(f"Giriş sırasında bir hata oluştu: {str(e)}")
+                    
+            if register:
+                if not username or not password:
+                    st.error("Lütfen kullanıcı adı ve şifre girin.")
+                    return
+                    
+                try:
+                    success = self.app.cloud_ai.sync_register(username, password)
+                    if success:
+                        st.success("Kayıt başarılı! Giriş yapabilirsiniz.")
+                    else:
+                        st.error("Kayıt sırasında bir hata oluştu.")
+                except Exception as e:
+                    st.error(f"Kayıt sırasında bir hata oluştu: {str(e)}") 
