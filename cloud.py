@@ -15,6 +15,7 @@ from dotenv import load_dotenv
 import nest_asyncio
 import torch
 import numpy as np
+import streamlit as st
 
 # .env dosyasını yükle
 load_dotenv()
@@ -558,12 +559,12 @@ class CloudAI:
             logger.error(f"Eğitim verisi silinirken hata: {str(e)}")
             return False
 
-    def sync_login(self, username: str, password: str) -> bool:
+    def sync_login(self, email: str, password: str) -> bool:
         """Kullanıcı girişi yap"""
         try:
             # Supabase auth ile giriş yap
             auth_response = self.supabase.auth.sign_in_with_password({
-                "email": username,
+                "email": email,
                 "password": password
             })
             
@@ -577,12 +578,12 @@ class CloudAI:
             logger.error(f"Giriş hatası: {str(e)}")
             return False
 
-    def sync_register(self, username: str, password: str) -> bool:
+    def sync_register(self, email: str, password: str) -> bool:
         """Yeni kullanıcı kaydı"""
         try:
             # Supabase auth ile kayıt ol
             auth_response = self.supabase.auth.sign_up({
-                "email": username,
+                "email": email,
                 "password": password
             })
             
