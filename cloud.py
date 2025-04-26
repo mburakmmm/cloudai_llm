@@ -675,42 +675,67 @@ class CloudAI:
         try:
             # Mesajı ön işle
             processed_message = self.preprocess_text(message)
+            logger.debug(f"İşlenmiş mesaj: {processed_message}")
             
             # Embedding hesapla
             message_embedding = self.encode_text(processed_message)
+            logger.debug("Embedding hesaplandı")
             
             # Intent belirle
             intent = predict_intent(processed_message)
+            logger.debug(f"Intent: {intent}")
             
             # Duygu analizi
-            emotion_data = self.analyze_emotion(processed_message)
+            try:
+                emotion_data = self.analyze_emotion(processed_message)
+                logger.debug(f"Duygu analizi sonucu: {emotion_data}")
+                
+                if not isinstance(emotion_data, dict):
+                    logger.error(f"Duygu analizi geçersiz veri döndürdü: {type(emotion_data)}")
+                    emotion_data = {"emotion": "neutral", "intensity": 0.0, "emoji": "😐"}
+            except Exception as e:
+                logger.error(f"Duygu analizi hatası: {str(e)}")
+                emotion_data = {"emotion": "neutral", "intensity": 0.0, "emoji": "😐"}
             
             # Bağlamı güncelle
             self.update_context(processed_message, intent)
             
             # Yanıt oluştur
             response = self.generate_response(processed_message, intent)
+            logger.debug(f"Oluşturulan yanıt: {response}")
             
             # Öğrenme sistemini güncelle
             self.update_learning_system(processed_message, response)
             
             # Yanıtı hafızaya ekle
-            memory_data = {
-                "prompt": processed_message,
-                "response": response,
-                "embedding": message_embedding,
-                "intent": intent,
-                "emotion": emotion_data["emotion"],  # Sadece duygu değerini kaydet
-                "created_at": datetime.now().isoformat()
-            }
+            try:
+                memory_data = {
+                    "prompt": processed_message,
+                    "response": response,
+                    "embedding": message_embedding,
+                    "intent": intent,
+                    "emotion": emotion_data["emotion"],
+                    "created_at": datetime.now().isoformat()
+                }
+                
+                self.memory_manager.add_memory(memory_data)
+                logger.debug("Hafızaya eklendi")
+            except Exception as e:
+                logger.error(f"Hafıza ekleme hatası: {str(e)}")
             
-            self.memory_manager.add_memory(memory_data)
-            
-            # Duygu yoğunluğunu güven skoru olarak kullan
-            intensity = emotion_data.get("intensity", 0.0)
-            if isinstance(intensity, (int, float)):
-                confidence = abs(intensity)
-            else:
+            # Güven skorunu hesapla
+            try:
+                intensity = emotion_data.get("intensity", 0.0)
+                logger.debug(f"Duygu yoğunluğu: {intensity}, Tipi: {type(intensity)}")
+                
+                if intensity is None:
+                    confidence = 0.0
+                else:
+                    confidence = float(abs(intensity))
+                
+                logger.debug(f"Hesaplanan güven skoru: {confidence}")
+            except Exception as e:
+                logger.error(f"Güven skoru hesaplama hatası: {str(e)}")
                 confidence = 0.0
             
             return response, confidence
