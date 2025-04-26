@@ -463,28 +463,28 @@ class CloudAI:
             if response and confidence >= self.confidence_threshold:
                 return response, confidence
                 
-            # Eğer yeterince benzer hafıza bulunamazsa, yeni bir yanıt oluştur
-            intent = predict_intent(processed_message)
-            response = self.generate_response(processed_message, intent)
-            
-            # Yeni hafızayı kaydet
-            memory_data = {
-                "prompt": processed_message,
-                "response": response,
-                "embedding": message_embedding,
-                "intent": intent,
-                "tags": [],
-                "priority": 1,
-                "category": "genel"
-            }
-            
-            self.memory_manager.add_memory(memory_data)
-            
-            return response, 0.5  # Yeni yanıt için varsayılan güven skoru
+            # Eğer yeterince benzer hafıza bulunamazsa, varsayılan yanıt döndür
+            return "Üzgünüm, bu konuda yardımcı olamıyorum.", 0.0
             
         except Exception as e:
             logger.error(f"Mesaj işleme hatası: {str(e)}")
             return ERRORS["response_error"], 0.0
+
+    def generate_response(self, message: str, intent: str = None) -> str:
+        """Mesaja uygun yanıt oluştur"""
+        try:
+            # Basit yanıt mantığı
+            if "merhaba" in message.lower() or "selam" in message.lower():
+                return "Merhaba! Size nasıl yardımcı olabilirim?"
+            elif "nasılsın" in message.lower():
+                return "İyiyim, teşekkür ederim. Siz nasılsınız?"
+            elif "teşekkür" in message.lower():
+                return "Rica ederim!"
+            else:
+                return "Üzgünüm, bu konuda yardımcı olamıyorum."
+        except Exception as e:
+            logger.error(f"Yanıt oluşturma hatası: {str(e)}")
+            return ERRORS["response_error"]
 
     async def learn(self, prompt: str, response: str, intent: str = None) -> bool:
         """Yeni bir prompt-yanıt çifti öğrenir."""
