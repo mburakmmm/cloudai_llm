@@ -14,6 +14,38 @@ class SQLiteMemoryManager:
     def __init__(self, db_path="memory.db"):
         self.db_path = db_path
         logger.debug(f"Initializing SQLiteMemoryManager with db_path: {db_path}")
+        
+        # Duygu sözlüğü
+        self.emotion_lexicon = {
+            "happy": {
+                "words": ["mutlu", "sevinçli", "harika", "güzel", "muhteşem", "süper"],
+                "intensity": 0.8,
+                "emojis": ["😊"]
+            },
+            "sad": {
+                "words": ["üzgün", "kötü", "maalesef", "üzücü", "kederli"],
+                "intensity": -0.7,
+                "emojis": ["😢"]
+            },
+            "angry": {
+                "words": ["kızgın", "sinirli", "öfkeli", "kızdım", "sinirlendim"],
+                "intensity": -0.9,
+                "emojis": ["😠"]
+            },
+            "neutral": {
+                "words": [],
+                "intensity": 0.0,
+                "emojis": ["😐"]
+            }
+        }
+        
+        # Duygu geçmişi
+        self.emotion_history = {
+            "current_emotion": "neutral",
+            "emotion_intensity": 0.0,
+            "emotion_timeline": []
+        }
+        
         self._init_db()
         
     def _init_db(self):
@@ -75,11 +107,19 @@ class SQLiteMemoryManager:
                         embedding_blob = None
                 
                 # Duygu analizi sonuçlarını işle
-                emotion_data = memory_data.get("emotion", {})
-                if isinstance(emotion_data, dict):
-                    emotion = emotion_data.get("emotion", "neutral")
-                else:
-                    emotion = str(emotion_data)
+                emotion = "neutral"  # Varsayılan değer
+                if "emotion" in memory_data:
+                    emotion_data = memory_data["emotion"]
+                    logger.debug(f"İşlenen duygu verisi: {emotion_data}")
+                    
+                    if isinstance(emotion_data, dict):
+                        emotion = emotion_data.get("emotion", "neutral")
+                    elif isinstance(emotion_data, str):
+                        emotion = emotion_data
+                    else:
+                        logger.warning(f"Beklenmeyen duygu veri tipi: {type(emotion_data)}")
+                
+                logger.debug(f"Kaydedilecek duygu: {emotion}")
                 
                 cursor.execute("""
                     INSERT INTO memories (prompt, response, embedding, intent, emotion)
@@ -91,12 +131,13 @@ class SQLiteMemoryManager:
                     str(memory_data.get("intent", "genel")),
                     str(emotion)
                 ))
-                conn.commit()
+                
                 last_id = cursor.lastrowid
-                logger.debug(f"Successfully added memory with ID: {last_id}")
+                logger.debug(f"Bellek başarıyla eklendi, ID: {last_id}")
                 return last_id
+                
         except Exception as e:
-            logger.error(f"Error in add_memory: {str(e)}")
+            logger.error(f"add_memory hatası: {str(e)}")
             raise
 
     def load_memory(self) -> List[Dict[str, Any]]:
