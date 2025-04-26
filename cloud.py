@@ -423,35 +423,59 @@ class CloudAI:
     def analyze_emotion(self, text: str) -> dict:
         """Metindeki duygu durumunu analiz et"""
         try:
-            max_intensity = 0
+            # Varsayılan değerler
+            max_intensity = 0.0
             current_emotion = "neutral"
+            
+            # Giriş kontrolü
+            if not isinstance(text, str) or not text.strip():
+                logger.warning("Geçersiz metin girişi")
+                return {
+                    "emotion": current_emotion,
+                    "intensity": max_intensity,
+                    "emoji": "😐"
+                }
             
             # Kelimeleri kontrol et
             text_lower = text.lower()
             for emotion, data in self.emotion_lexicon.items():
                 for word in data["words"]:
                     if word in text_lower:
-                        if abs(data["intensity"]) > abs(max_intensity):
-                            max_intensity = data["intensity"]
+                        intensity = float(data["intensity"])  # Sayısal değere dönüştür
+                        if abs(intensity) > abs(max_intensity):
+                            max_intensity = intensity
                             current_emotion = emotion
             
             # Duygu geçmişini güncelle
-            self.emotion_history["current_emotion"] = current_emotion
-            self.emotion_history["emotion_intensity"] = max_intensity
-            self.emotion_history["emotion_timeline"].append({
-                "emotion": current_emotion,
-                "intensity": max_intensity,
-                "timestamp": datetime.now().isoformat()
-            })
+            try:
+                self.emotion_history["current_emotion"] = current_emotion
+                self.emotion_history["emotion_intensity"] = max_intensity
+                self.emotion_history["emotion_timeline"].append({
+                    "emotion": current_emotion,
+                    "intensity": max_intensity,
+                    "timestamp": datetime.now().isoformat()
+                })
+            except Exception as e:
+                logger.error(f"Duygu geçmişi güncelleme hatası: {str(e)}")
             
-            return {
+            # Sonuç sözlüğünü oluştur
+            result = {
                 "emotion": current_emotion,
-                "intensity": max_intensity,
+                "intensity": float(max_intensity),  # Sayısal değer olduğundan emin ol
                 "emoji": self.emotion_lexicon[current_emotion]["emojis"][0]
             }
+            
+            logger.debug(f"Duygu analizi sonucu: {result}")
+            return result
+            
         except Exception as e:
             logger.error(f"Duygu analizi hatası: {str(e)}")
-            return {"emotion": "neutral", "intensity": 0.0, "emoji": "😐"}
+            # Hata durumunda varsayılan değerleri döndür
+            return {
+                "emotion": "neutral",
+                "intensity": 0.0,
+                "emoji": "😐"
+            }
 
     def update_context(self, message: str, intent: str = None):
         """Konuşma bağlamını akıllı bir şekilde güncelle"""
