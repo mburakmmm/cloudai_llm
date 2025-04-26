@@ -221,42 +221,56 @@ class SQLiteMemoryManager:
     def find_best_response(self, query_embedding: np.ndarray) -> Tuple[Optional[str], float]:
         """En iyi yanıtı bul"""
         try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            
-            # Tüm bellekleri getir
-            cursor.execute("SELECT id, embedding, response FROM memories WHERE embedding IS NOT NULL")
-            memories = cursor.fetchall()
-            
-            if not memories:
-                logger.warning("No memories found with embeddings")
+            if query_embedding is None or not isinstance(query_embedding, np.ndarray):
+                logger.error("Geçersiz query_embedding")
                 return None, 0.0
+
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
                 
-            # Benzerlik skorlarını hesapla
-            similarities = []
-            for memory in memories:
-                try:
-                    memory_embedding = np.frombuffer(memory[1], dtype=np.float32)
-                    similarity = np.dot(query_embedding, memory_embedding) / (
-                        np.linalg.norm(query_embedding) * np.linalg.norm(memory_embedding)
-                    )
-                    similarities.append((memory[2], similarity))
-                except Exception as e:
-                    logger.error(f"Error processing memory {memory[0]}: {str(e)}")
-                    continue
-            
-            if not similarities:
-                logger.warning("No valid similarities calculated")
-                return None, 0.0
-            
-            # En yüksek benzerlik skoruna sahip yanıtı bul
-            best_response, best_similarity = max(similarities, key=lambda x: x[1])
-            
-            conn.close()
-            return best_response, float(best_similarity)
-            
+                # Tüm bellekleri getir
+                cursor.execute("SELECT id, embedding, response FROM memories WHERE embedding IS NOT NULL")
+                memories = cursor.fetchall()
+                
+                if not memories:
+                    logger.warning("Embedding içeren bellek bulunamadı")
+                    return None, 0.0
+                    
+                # Benzerlik skorlarını hesapla
+                similarities = []
+                for memory in memories:
+                    try:
+                        if memory[1] is None:  # embedding None ise atla
+                            continue
+                            
+                        memory_embedding = np.frombuffer(memory[1], dtype=np.float32)
+                        if memory_embedding.shape != query_embedding.shape:
+                            logger.warning(f"Embedding boyutları uyuşmuyor: {memory_embedding.shape} != {query_embedding.shape}")
+                            continue
+                            
+                        similarity = np.dot(query_embedding, memory_embedding) / (
+                            np.linalg.norm(query_embedding) * np.linalg.norm(memory_embedding)
+                        )
+                        similarities.append((memory[2], similarity))
+                    except Exception as e:
+                        logger.error(f"Bellek işleme hatası {memory[0]}: {str(e)}")
+                        continue
+                
+                if not similarities:
+                    logger.warning("Geçerli benzerlik skoru hesaplanamadı")
+                    return None, 0.0
+                    
+                # En yüksek benzerlik skoruna sahip yanıtı bul
+                best_response, best_similarity = max(similarities, key=lambda x: x[1])
+                logger.debug(f"En iyi yanıt bulundu - Benzerlik: {best_similarity}")
+                
+                # Kullanım istatistiklerini güncelle
+                self.update_usage_stats(memory[0], best_similarity)
+                
+                return best_response, best_similarity
+                
         except Exception as e:
-            logger.error(f"Yanıt bulma hatası: {str(e)}")
+            logger.error(f"find_best_response hatası: {str(e)}")
             return None, 0.0
 
     def get_all_memories(self) -> List[dict]:
