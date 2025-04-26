@@ -45,66 +45,122 @@ except RuntimeError:
     asyncio.set_event_loop(loop)
 nest_asyncio.apply()
 
+# Supabase bağlantısı için güvenli yapılandırma
+supabase_url = os.getenv("SUPABASE_URL")
+supabase_key = os.getenv("SUPABASE_KEY")
+
+if not supabase_url or not supabase_key:
+    raise ValueError("Supabase bağlantı bilgileri eksik. Lütfen .env dosyasını kontrol edin.")
+
 class CloudAI:
     def __init__(self):
         # Supabase bağlantısı
-        supabase_url = os.getenv("SUPABASE_URL", "https://dnnuvhzfihduvyalmzru.supabase.co")
-        supabase_key = os.getenv("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0")
         self.supabase: Client = create_client(supabase_url, supabase_key)
-        logger.info(f"Supabase bağlantısı başarılı - URL: {supabase_url}")
-
-        # Event loop yönetimi
-        try:
-            self.loop = asyncio.get_event_loop()
-        except RuntimeError:
-            self.loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(self.loop)
+        logger.info("Supabase bağlantısı başarılı")
 
         # NLP modeli yükleme - PyTorch ayarları
-        device = 'cpu'  # Varsayılan olarak CPU kullan
-        if torch.backends.mps.is_available():
-            device = 'mps'
-        elif torch.cuda.is_available():
-            device = 'cuda'
-            
-        self.model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2', device=device)
-        logger.debug(f"CloudAI initialized with device: {device}")
-
+        device = self._get_device()
+        self.model = self._load_model(device)
+        
         # SQLite bellek yöneticisi
         self.memory_manager = SQLiteMemoryManager()
+        
+        # Yapılandırma
+        self._load_config()
+        
+        # Sistemleri başlat
+        self._initialize_systems()
 
-        self.context_length = int(os.getenv("MAX_CONTEXT_LENGTH", 1024))
-        self.confidence_threshold = float(os.getenv("CONFIDENCE_THRESHOLD", 0.7))
-        self.history = []
-        self.current_topic = None
-        self.conversation_state = {}
-        self.emotion_state = "neutral"
-        
-        # TTS ve STT ayarlarını kontrol et
-        self.tts_enabled = settings.get("TTS_ENABLED", False)
-        self.stt_enabled = settings.get("STT_ENABLED", False)
-        
-        if self.tts_enabled:
-            try:
-                from gtts import gTTS
-                import pygame
-                self.gTTS = gTTS
-                self.pygame = pygame
-                pygame.mixer.init()
-            except ImportError:
-                logger.warning("TTS için gerekli kütüphaneler yüklü değil")
-                self.tts_enabled = False
+    def _get_device(self) -> str:
+        """Kullanılacak cihazı belirle"""
+        if torch.backends.mps.is_available():
+            return 'mps'
+        elif torch.cuda.is_available():
+            return 'cuda'
+        return 'cpu'
+
+    def _load_model(self, device: str) -> SentenceTransformer:
+        """NLP modelini yükle"""
+        try:
+            model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2', device=device)
+            logger.debug(f"Model başarıyla yüklendi - Device: {device}")
+            return model
+        except Exception as e:
+            logger.error(f"Model yükleme hatası: {str(e)}")
+            raise
+
+    def _load_config(self):
+        """Yapılandırma ayarlarını yükle"""
+        try:
+            self.context_length = int(os.getenv("MAX_CONTEXT_LENGTH", 1024))
+            self.confidence_threshold = float(os.getenv("CONFIDENCE_THRESHOLD", 0.7))
+            self.tts_enabled = settings.get("TTS_ENABLED", False)
+            self.stt_enabled = settings.get("STT_ENABLED", False)
+            
+            # TTS ve STT için gerekli kütüphaneleri kontrol et
+            if self.tts_enabled:
+                self._setup_tts()
+            if self.stt_enabled:
+                self._setup_stt()
                 
-        if self.stt_enabled:
-            try:
-                import speech_recognition as sr
-                self.sr = sr
-                self.recognizer = sr.Recognizer()
-            except ImportError:
-                logger.warning("STT için gerekli kütüphaneler yüklü değil")
-                self.stt_enabled = False
-        
-        # Gelişmiş NLP özellikleri
+        except Exception as e:
+            logger.error(f"Yapılandırma yükleme hatası: {str(e)}")
+            raise
+
+    def _setup_tts(self):
+        """TTS sistemini kur"""
+        try:
+            from gtts import gTTS
+            import pygame
+            self.gTTS = gTTS
+            self.pygame = pygame
+            pygame.mixer.init()
+        except ImportError:
+            logger.warning("TTS için gerekli kütüphaneler yüklü değil")
+            self.tts_enabled = False
+
+    def _setup_stt(self):
+        """STT sistemini kur"""
+        try:
+            import speech_recognition as sr
+            self.sr = sr
+            self.recognizer = sr.Recognizer()
+        except ImportError:
+            logger.warning("STT için gerekli kütüphaneler yüklü değil")
+            self.stt_enabled = False
+
+    def _initialize_systems(self):
+        """Alt sistemleri başlat"""
+        try:
+            # Geçmiş
+            self.history = []
+            self.current_topic = None
+            
+            # Durum yönetimi
+            self.conversation_state = {}
+            self.emotion_state = "neutral"
+            
+            # NLP özellikleri
+            self._init_nlp_features()
+            
+            # Öğrenme sistemi
+            self._init_learning_system()
+            
+            # Duygu analizi
+            self._init_emotion_system()
+            
+            # Konuşma bağlamı
+            self._init_conversation_context()
+            
+            # Kullanıcı tercihleri
+            self._init_user_preferences()
+            
+        except Exception as e:
+            logger.error(f"Sistem başlatma hatası: {str(e)}")
+            raise
+
+    def _init_nlp_features(self):
+        """NLP özelliklerini başlat"""
         self.nlp_features = {
             "word_embeddings": {},
             "sentence_templates": [],
@@ -117,8 +173,9 @@ class CloudAI:
             "dependency_trees": {},
             "coreference_chains": {}
         }
-        
-        # Öğrenme sistemi
+
+    def _init_learning_system(self):
+        """Öğrenme sistemini başlat"""
         self.learning_system = {
             "word_patterns": {},
             "response_patterns": {},
@@ -150,8 +207,9 @@ class CloudAI:
                 "performance_metrics": {}
             }
         }
-        
-        # Duygu analizi sözlükleri
+
+    def _init_emotion_system(self):
+        """Duygu analizi sistemini başlat"""
         self.emotion_lexicon = {
             "neutral": {
                 "words": ["nasılsın", "naber", "ne haber", "iyi misin", "merhaba", "selam"],
@@ -159,38 +217,17 @@ class CloudAI:
                 "intensity": 0.0
             },
             "mutluluk": {
-                "words": ["mutlu", "sevinç", "harika", "mükemmel", "teşekkür", "sağol", "güzel", "harika", "müthiş"],
-                "emojis": ["😊", "😄", "😍", "🥰", "🤗"],
+                "words": ["mutlu", "sevinç", "harika", "mükemmel", "teşekkür", "sağol"],
+                "emojis": ["😊", "😄", "😍"],
                 "intensity": 1.0
             },
             "üzüntü": {
-                "words": ["üzgün", "kötü", "berbat", "yorgun", "bitkin", "moral", "bozuk"],
-                "emojis": ["😔", "😢", "😞", "😥", "😭"],
+                "words": ["üzgün", "kötü", "berbat", "yorgun", "bitkin"],
+                "emojis": ["😔", "😢", "😞"],
                 "intensity": -1.0
-            },
-            "öfke": {
-                "words": ["kızgın", "sinir", "kızdım", "sinirlendim", "öfke", "kızgınım"],
-                "emojis": ["😠", "😡", "🤬", "👿", "💢"],
-                "intensity": -0.8
-            },
-            "şaşkınlık": {
-                "words": ["şaşırdım", "vay", "vay canına", "inanılmaz", "harika"],
-                "emojis": ["😲", "😮", "🤯", "😳", "😱"],
-                "intensity": 0.5
-            },
-            "korku": {
-                "words": ["korktum", "korkuyorum", "endişe", "kaygı", "panik"],
-                "emojis": ["😨", "😰", "😱", "😖", "😫"],
-                "intensity": -0.7
-            },
-            "sevgi": {
-                "words": ["seviyorum", "aşk", "kalp", "canım", "tatlım"],
-                "emojis": ["❤️", "💕", "💖", "💗", "💝"],
-                "intensity": 0.9
             }
         }
         
-        # Duygu durumu geçmişi
         self.emotion_history = {
             "current_emotion": "neutral",
             "emotion_timeline": [],
@@ -199,8 +236,9 @@ class CloudAI:
             "emotion_triggers": {},
             "emotion_patterns": []
         }
-        
-        # Konuşma bağlamı yönetimi
+
+    def _init_conversation_context(self):
+        """Konuşma bağlamını başlat"""
         self.conversation_context = {
             "current_topic": None,
             "previous_topics": [],
@@ -212,8 +250,9 @@ class CloudAI:
             "topic_switch_count": 0,
             "last_topic_switch_time": None
         }
-        
-        # Kullanıcı tercihleri
+
+    def _init_user_preferences(self):
+        """Kullanıcı tercihlerini başlat"""
         self.user_preferences = {
             "response_style": "normal",
             "language_preference": "tr",
@@ -221,23 +260,6 @@ class CloudAI:
             "disliked_topics": set(),
             "interaction_count": 0,
             "last_interaction_time": None
-        }
-        
-        # Eş anlamlı kelimeler sözlüğü
-        self.synonyms = {
-            "merhaba": ["selam", "hey", "hi", "hello"],
-            "güle güle": ["hoşça kal", "bay bay", "bye", "görüşürüz"],
-            "nasılsın": ["iyi misin", "ne haber", "ne var ne yok"],
-            "teşekkür": ["sağol", "eyvallah", "thanks", "thank you"],
-            "evet": ["tabi", "olur", "tamam", "yes"],
-            "hayır": ["olmaz", "yok", "no", "nope"],
-        }
-        
-        # Cümle yapısı kalıpları
-        self.sentence_patterns = {
-            "soru": ["mi", "mı", "mu", "mü", "?", "ne", "nasıl", "neden", "kim", "ne zaman"],
-            "emir": ["lütfen", "rica", "yap", "et", "getir", "ver"],
-            "istek": ["isterim", "istiyorum", "arzu", "dilek"],
         }
 
     def run_async(self, coro):
@@ -393,59 +415,6 @@ class CloudAI:
             
         except Exception as e:
             logger.error(f"Bağlantı testi hatası: {str(e)}")
-            return False
-
-    def sync_test_connection(self) -> bool:
-        """Supabase bağlantısını test eder ve veritabanı yapısını kontrol eder."""
-        try:
-            logger.debug("Supabase bağlantı testi başlatılıyor...")
-            
-            # Gerekli sütunları kontrol et
-            required_columns = [
-                "prompt",
-                "response",
-                "intent",
-                "confidence_score",
-                "created_at"
-            ]
-            
-            # Test verisi oluştur
-            test_data = {
-                "prompt": "test_prompt",
-                "response": "test_response",
-                "intent": "test_intent",
-                "confidence_score": 1.0,
-                "created_at": datetime.now().isoformat()
-            }
-            
-            # Sütunları kontrol et
-            try:
-                result = self.supabase.table('training_data').select("*").limit(1).execute()
-                if result.data:
-                    existing_columns = list(result.data[0].keys())
-                    missing_columns = [col for col in required_columns if col not in existing_columns]
-                    if missing_columns:
-                        logger.error(f"Eksik sütunlar: {missing_columns}")
-                        return False
-            except Exception as e:
-                logger.error(f"Sütun kontrolü hatası: {str(e)}")
-                return False
-            
-            # Test verisini ekle
-            result = self.supabase.table('training_data').insert(test_data).execute()
-            logger.info(f"Test verisi eklendi: {result.data}")
-            
-            # Eklenen veriyi sil
-            if result.data and len(result.data) > 0:
-                test_id = result.data[0]['id']
-                self.supabase.table('training_data').delete().eq('id', test_id).execute()
-                logger.info("Test verisi başarıyla silindi")
-            
-            logger.info("Supabase bağlantı testi başarılı!")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Supabase bağlantı testi başarısız: {str(e)}")
             return False
 
     def analyze_emotion(self, text: str) -> dict:
@@ -686,205 +655,35 @@ class CloudAI:
             # Intent belirle
             intent = predict_intent(processed_message)
             
-            # Benzer hafızaları bul
-            response, confidence = self.memory_manager.find_best_response(message_embedding)
+            # Duygu analizi
+            emotion_data = self.analyze_emotion(processed_message)
             
-            if response and confidence >= self.confidence_threshold:
-                # Başarılı yanıtı öğrenme sistemine ekle
-                self.learning_system["response_patterns"][processed_message.lower()] = response
-                return response, confidence
+            # Bağlamı güncelle
+            self.update_context(processed_message, intent)
             
-            # Yeni yanıt oluştur
+            # Yanıt oluştur
             response = self.generate_response(processed_message, intent)
             
-            # Yeni yanıtı hafızaya ekle
+            # Öğrenme sistemini güncelle
+            self.update_learning_system(processed_message, response)
+            
+            # Yanıtı hafızaya ekle
             memory_data = {
                 "prompt": processed_message,
                 "response": response,
                 "embedding": message_embedding,
                 "intent": intent,
-                "tags": [],
-                "priority": 1,
-                "category": "genel"
+                "emotion": emotion_data["emotion"],
+                "created_at": datetime.now().isoformat()
             }
             
             self.memory_manager.add_memory(memory_data)
             
-            return response, 0.5  # Yeni yanıt için varsayılan güven skoru
+            return response, emotion_data["confidence"]
             
         except Exception as e:
             logger.error(f"Mesaj işleme hatası: {str(e)}")
             return ERRORS["response_error"], 0.0
-
-    def sync_learn(self, prompt: str, response: str, intent: str = None) -> bool:
-        """Senkron olarak yeni bir prompt-yanıt çifti öğrenir."""
-        try:
-            if not self.loop.is_running():
-                return self.loop.run_until_complete(self.learn(prompt, response, intent))
-            else:
-                future = asyncio.run_coroutine_threadsafe(self.learn(prompt, response, intent), self.loop)
-                return future.result(timeout=10)  # 10 saniye timeout
-        except Exception as e:
-            logger.error(f"Senkron öğrenme hatası: {str(e)}")
-            return False
-
-    async def delete_training_data(self, id: int) -> bool:
-        """Belirtilen ID'ye sahip eğitim verisini siler."""
-        try:
-            self.supabase.table('training_data').delete().eq('id', id).execute()
-            return True
-        except Exception as e:
-            logger.error(f"Eğitim verisi silme hatası: {str(e)}")
-            return False
-
-    def sync_delete_training_data(self, id: int) -> bool:
-        """Eğitim verisini sil"""
-        try:
-            return self.memory_manager.delete_memory(id)
-        except Exception as e:
-            logger.error(f"Eğitim verisi silinirken hata: {str(e)}")
-            return False
-
-    def sync_login(self, email: str, password: str) -> bool:
-        """Kullanıcı girişi yap"""
-        try:
-            # Supabase auth ile giriş yap
-            auth_response = self.supabase.auth.sign_in_with_password({
-                "email": email,
-                "password": password
-            })
-            
-            if auth_response and hasattr(auth_response.user, 'id'):
-                st.session_state.token = auth_response.session.access_token
-                st.session_state.user_id = auth_response.user.id
-                st.session_state.is_authenticated = True
-                return True
-            return False
-        except Exception as e:
-            logger.error(f"Giriş hatası: {str(e)}")
-            return False
-
-    def sync_register(self, email: str, password: str) -> bool:
-        """Yeni kullanıcı kaydı"""
-        try:
-            # Supabase auth ile kayıt ol
-            auth_response = self.supabase.auth.sign_up({
-                "email": email,
-                "password": password
-            })
-            
-            if auth_response and hasattr(auth_response.user, 'id'):
-                return True
-            return False
-        except Exception as e:
-            logger.error(f"Kayıt hatası: {str(e)}")
-            return False
-
-    def test_training(self):
-        """Test eğitim verisi ekleme ve silme işlemlerini."""
-        logger.info("Eğitim testi başlatılıyor...")
-        
-        # Test verisi
-        test_data = {
-            "prompt": "Merhaba, nasılsın?",
-            "response": "İyiyim, teşekkür ederim. Siz nasılsınız?",
-            "intent": "selamlaşma",
-            "tags": ["selam", "hal hatır"],
-            "priority": 1,
-            "context_message": "",
-            "category": "genel"
-        }
-        
-        # Belleğe ekle
-        memory_id = self.memory_manager.add_memory(test_data)
-        if memory_id:
-            logger.info(f"Test verisi belleğe eklendi - ID: {memory_id}")
-            
-            # Supabase'e ekle
-            try:
-                data = {
-                    "prompt": test_data["prompt"],
-                    "response": test_data["response"],
-                    "intent": test_data["intent"],
-                    "confidence_score": 0.95
-                }
-                result = self.supabase.table("training_data").insert(data).execute()
-                
-                if result.data:
-                    logger.info("Test verisi Supabase'e başarıyla eklendi")
-                    return True
-                else:
-                    logger.error("Test verisi Supabase'e eklenemedi")
-                    return False
-                    
-            except Exception as e:
-                logger.error(f"Eğitim testi başarısız: {e}")
-                return False
-        else:
-            logger.error("Test verisi belleğe eklenemedi")
-            return False
-
-    def sync_train(self, prompt: str, response: str, intent: str = None, tags: list = None, priority: int = 1, category: str = "genel") -> bool:
-        """Senkron eğitim metodu"""
-        try:
-            # Giriş kontrolü
-            if not self.is_meaningful_input(prompt) or not self.is_meaningful_input(response):
-                logger.warning("Anlamsız giriş tespit edildi")
-                return False
-                
-            # Vektör hesapla
-            try:
-                prompt_embedding = self.encode_text(prompt)
-                # PyTorch tensörünü NumPy dizisine dönüştür
-                if torch.is_tensor(prompt_embedding):
-                    prompt_embedding = prompt_embedding.cpu().numpy()
-            except Exception as e:
-                logger.error(f"Vektör hesaplama hatası: {str(e)}")
-                return False
-                
-            # Belleğe ekle
-            try:
-                memory_data = {
-                    "prompt": prompt,
-                    "response": response,
-                    "embedding": prompt_embedding,
-                    "intent": intent or "genel",
-                    "tags": tags or [],
-                    "priority": priority,
-                    "category": category,
-                    "created_at": datetime.now().isoformat()
-                }
-                
-                memory_id = self.memory_manager.add_memory(memory_data)
-                logger.info(f"Yeni bellek eklendi: {memory_id}")
-                
-                # Supabase'e kaydet
-                training_data = {
-                    "prompt": prompt,
-                    "response": response,
-                    "intent": intent or "genel",
-                    "tags": tags or [],
-                    "priority": priority,
-                    "category": category,
-                    "confidence_score": 1.0,
-                    "created_at": datetime.now().isoformat()
-                }
-                
-                result = self.supabase.table('training_data').insert(training_data).execute()
-                
-                if not result.data:
-                    raise Exception("Supabase'e veri eklenemedi")
-                    
-                logger.info(f"Eğitim verisi başarıyla eklendi - ID: {result.data[0]['id']}")
-                return True
-                
-            except Exception as e:
-                logger.error(f"Bellek/Supabase kayıt hatası: {str(e)}")
-                return False
-                
-        except Exception as e:
-            logger.error(f"Eğitim verisi eklenirken hata: {str(e)}")
-            return False
 
     def update_learning_system(self, message: str, response: str, feedback: float = None):
         """Öğrenme sistemini güncelle"""
@@ -1040,4 +839,28 @@ class CloudAI:
         except Exception as e:
             logger.error(f"Öğrenme istatistikleri getirme hatası: {str(e)}")
             return {}
+
+    def close(self):
+        """Sistemleri güvenli bir şekilde kapat"""
+        try:
+            # Veritabanı bağlantılarını kapat
+            if hasattr(self, 'memory_manager'):
+                del self.memory_manager
+                
+            # PyTorch modelini temizle
+            if hasattr(self, 'model'):
+                del self.model
+                
+            # Supabase bağlantısını kapat
+            if hasattr(self, 'supabase'):
+                del self.supabase
+                
+            logger.info("Sistem başarıyla kapatıldı")
+            
+        except Exception as e:
+            logger.error(f"Sistem kapatma hatası: {str(e)}")
+
+    def __del__(self):
+        """Yıkıcı metod"""
+        self.close()
 

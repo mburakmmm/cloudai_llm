@@ -301,3 +301,74 @@ class SQLiteMemoryManager:
         except Exception as e:
             logger.error(f"Bellek getirme hatası: {str(e)}")
             return []
+
+    def analyze_emotion(self, text: str) -> dict:
+        try:
+            # Cümle yapısı analizi
+            sentence_score = 0
+            text_lower = text.lower()
+            
+            # Noktalama işaretleri analizi
+            if "!" in text:
+                sentence_score += 0.2
+            if "..." in text:
+                sentence_score -= 0.1
+            
+            # Kelime bazlı analiz
+            word_scores = []
+            for emotion, data in self.emotion_lexicon.items():
+                emotion_score = 0
+                for word in data["words"]:
+                    if word in text_lower:
+                        emotion_score += data["intensity"]
+                    
+                if emotion_score != 0:
+                    word_scores.append({
+                        "emotion": emotion,
+                        "score": emotion_score
+                    })
+            
+            # Bağlam analizi
+            context_score = 0
+            if len(self.emotion_history["emotion_timeline"]) > 0:
+                last_emotion = self.emotion_history["emotion_timeline"][-1]["emotion"]
+                if last_emotion != "neutral":
+                    context_score = self.emotion_lexicon[last_emotion]["intensity"] * 0.3
+            
+            # Toplam skor hesaplama
+            final_scores = []
+            for score in word_scores:
+                final_score = score["score"] + sentence_score + context_score
+                final_scores.append({
+                    "emotion": score["emotion"],
+                    "score": final_score
+                })
+            
+            # En yüksek skorlu duyguyu seç
+            if final_scores:
+                max_score = max(final_scores, key=lambda x: abs(x["score"]))
+                current_emotion = max_score["emotion"]
+                intensity = max_score["score"]
+            else:
+                current_emotion = "neutral"
+                intensity = 0.0
+            
+            # Duygu geçmişini güncelle
+            self.emotion_history["current_emotion"] = current_emotion
+            self.emotion_history["emotion_intensity"] = intensity
+            self.emotion_history["emotion_timeline"].append({
+                "emotion": current_emotion,
+                "intensity": intensity,
+                "timestamp": datetime.now().isoformat()
+            })
+            
+            return {
+                "emotion": current_emotion,
+                "intensity": intensity,
+                "emoji": self.emotion_lexicon[current_emotion]["emojis"][0],
+                "confidence": abs(intensity) / 2  # 0-1 arası güven skoru
+            }
+            
+        except Exception as e:
+            logger.error(f"Gelişmiş duygu analizi hatası: {str(e)}")
+            return {"emotion": "neutral", "intensity": 0.0, "emoji": "😐", "confidence": 0.0}
