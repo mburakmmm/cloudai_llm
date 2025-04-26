@@ -65,17 +65,24 @@ class SQLiteMemoryManager:
                 # Embedding'i numpy array'den BLOB'a dönüştür
                 embedding_blob = None
                 if "embedding" in memory_data and memory_data["embedding"] is not None:
-                    embedding_blob = memory_data["embedding"].tobytes()
+                    try:
+                        if isinstance(memory_data["embedding"], np.ndarray):
+                            embedding_blob = memory_data["embedding"].astype(np.float32).tobytes()
+                        else:
+                            logger.warning(f"Embedding geçerli bir numpy array değil: {type(memory_data['embedding'])}")
+                    except Exception as e:
+                        logger.error(f"Embedding dönüştürme hatası: {str(e)}")
+                        embedding_blob = None
                 
                 cursor.execute("""
                     INSERT INTO memories (prompt, response, embedding, intent, emotion)
                     VALUES (?, ?, ?, ?, ?)
                 """, (
-                    memory_data["prompt"],
-                    memory_data["response"],
+                    str(memory_data["prompt"]),
+                    str(memory_data["response"]),
                     embedding_blob,
-                    memory_data.get("intent", "genel"),
-                    memory_data.get("emotion", "neutral")
+                    str(memory_data.get("intent", "genel")),
+                    str(memory_data.get("emotion", "neutral"))
                 ))
                 conn.commit()
                 last_id = cursor.lastrowid
