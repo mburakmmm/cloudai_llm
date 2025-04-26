@@ -248,7 +248,28 @@ class ChatPanel:
             padding: 10px 0;
             border-top: 1px solid #e4e6eb;
         }
+        
+        /* Enter tuşu için JavaScript */
+        textarea {
+            position: relative;
+        }
         </style>
+        
+        <script>
+        // Enter tuşu ile gönderme
+        const textareas = window.parent.document.querySelectorAll('textarea');
+        textareas.forEach(textarea => {
+            textarea.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    const button = window.parent.document.querySelector('button[kind="primary"]');
+                    if (button) {
+                        button.click();
+                    }
+                }
+            });
+        });
+        </script>
         """, unsafe_allow_html=True)
 
         # Mesaj geçmişi container
@@ -281,17 +302,23 @@ class ChatPanel:
         # Input container
         st.markdown("<div class='input-container'>", unsafe_allow_html=True)
         
-        # Butonları yan yana yerleştir
-        col1, col2, col3 = st.columns([4, 1, 1])
-        with col1:
-            user_input = st.text_input("Mesajınızı yazın...", key="user_input")
-        with col2:
-            if st.button("Gönder", use_container_width=True, key="send_button"):
-                if user_input and not st.session_state.is_processing:
-                    self._process_user_input(user_input)
-        with col3:
-            if st.button("Temizle", use_container_width=True, key="clear_button", 
-                        help="Mesaj geçmişini temizler"):
+        # Form oluştur
+        with st.form(key="message_form", clear_on_submit=True):
+            # Butonları yan yana yerleştir
+            col1, col2, col3 = st.columns([4, 1, 1])
+            with col1:
+                user_input = st.text_input("Mesajınızı yazın...", key="user_input")
+            with col2:
+                submit_button = st.form_submit_button("Gönder", use_container_width=True)
+            with col3:
+                clear_button = st.form_submit_button("Temizle", use_container_width=True)
+            
+            if submit_button and user_input and not st.session_state.is_processing:
+                self._process_user_input(user_input)
+                # Form alanını temizle
+                st.session_state.user_input = ""
+            
+            if clear_button:
                 self.clear_messages()
                 
         st.markdown("</div>", unsafe_allow_html=True)
