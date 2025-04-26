@@ -448,6 +448,114 @@ class CloudAI:
             logger.error(f"Supabase bağlantı testi başarısız: {str(e)}")
             return False
 
+    def analyze_emotion(self, text: str) -> dict:
+        """Metindeki duygu durumunu analiz et"""
+        try:
+            max_intensity = 0
+            current_emotion = "neutral"
+            
+            # Kelimeleri kontrol et
+            text_lower = text.lower()
+            for emotion, data in self.emotion_lexicon.items():
+                for word in data["words"]:
+                    if word in text_lower:
+                        if abs(data["intensity"]) > abs(max_intensity):
+                            max_intensity = data["intensity"]
+                            current_emotion = emotion
+            
+            # Duygu geçmişini güncelle
+            self.emotion_history["current_emotion"] = current_emotion
+            self.emotion_history["emotion_intensity"] = max_intensity
+            self.emotion_history["emotion_timeline"].append({
+                "emotion": current_emotion,
+                "intensity": max_intensity,
+                "timestamp": datetime.now().isoformat()
+            })
+            
+            return {
+                "emotion": current_emotion,
+                "intensity": max_intensity,
+                "emoji": self.emotion_lexicon[current_emotion]["emojis"][0]
+            }
+        except Exception as e:
+            logger.error(f"Duygu analizi hatası: {str(e)}")
+            return {"emotion": "neutral", "intensity": 0.0, "emoji": "😐"}
+
+    def update_context(self, message: str, intent: str = None):
+        """Konuşma bağlamını güncelle"""
+        try:
+            # Mevcut konuyu kaydet
+            if self.conversation_context["current_topic"]:
+                self.conversation_context["previous_topics"].append({
+                    "topic": self.conversation_context["current_topic"],
+                    "timestamp": datetime.now().isoformat()
+                })
+            
+            # Yeni konuyu belirle
+            self.conversation_context["current_topic"] = intent or "genel"
+            self.conversation_context["topic_history"].append({
+                "topic": self.conversation_context["current_topic"],
+                "message": message,
+                "timestamp": datetime.now().isoformat()
+            })
+            
+            # Bağlam penceresini güncelle
+            self.conversation_context["context_window"].append({
+                "message": message,
+                "topic": self.conversation_context["current_topic"],
+                "timestamp": datetime.now().isoformat()
+            })
+            
+            # Bağlam penceresini sınırla
+            if len(self.conversation_context["context_window"]) > 5:
+                self.conversation_context["context_window"].pop(0)
+                
+        except Exception as e:
+            logger.error(f"Bağlam güncelleme hatası: {str(e)}")
+
+    def generate_response(self, message: str, intent: str = None) -> str:
+        """Mesaja uygun yanıt oluştur"""
+        try:
+            # Duygu analizi yap
+            emotion_data = self.analyze_emotion(message)
+            
+            # Bağlamı güncelle
+            self.update_context(message, intent)
+            
+            # Intent belirleme
+            if not intent:
+                intent = predict_intent(message)
+            
+            # Yanıt oluştur
+            if intent == "selamlaşma":
+                if emotion_data["emotion"] == "mutluluk":
+                    return f"Merhaba! {emotion_data['emoji']} Size nasıl yardımcı olabilirim?"
+                else:
+                    return "Merhaba! Size nasıl yardımcı olabilirim?"
+            elif intent == "hal_hatır":
+                if emotion_data["emotion"] == "mutluluk":
+                    return f"Çok iyiyim, teşekkür ederim! {emotion_data['emoji']} Siz nasılsınız?"
+                elif emotion_data["emotion"] == "üzüntü":
+                    return f"İyiyim, teşekkürler. Siz iyi görünmüyorsunuz, bir şey mi oldu? {emotion_data['emoji']}"
+                else:
+                    return "İyiyim, teşekkür ederim. Siz nasılsınız?"
+            elif intent == "teşekkür":
+                if emotion_data["emotion"] == "mutluluk":
+                    return f"Rica ederim! {emotion_data['emoji']}"
+                else:
+                    return "Rica ederim!"
+            else:
+                # Öğrenme sisteminden yanıt bul
+                for pattern, response in self.learning_system["response_patterns"].items():
+                    if pattern in message.lower():
+                        return response
+                
+                return "Üzgünüm, bu konuda yardımcı olamıyorum."
+                
+        except Exception as e:
+            logger.error(f"Yanıt oluşturma hatası: {str(e)}")
+            return ERRORS["response_error"]
+
     def sync_process_message(self, message: str) -> tuple[str, float]:
         """Mesajı işle ve yanıt döndür"""
         try:
@@ -457,78 +565,38 @@ class CloudAI:
             # Embedding hesapla
             message_embedding = self.encode_text(processed_message)
             
+            # Intent belirle
+            intent = predict_intent(processed_message)
+            
             # Benzer hafızaları bul
             response, confidence = self.memory_manager.find_best_response(message_embedding)
             
             if response and confidence >= self.confidence_threshold:
+                # Başarılı yanıtı öğrenme sistemine ekle
+                self.learning_system["response_patterns"][processed_message.lower()] = response
                 return response, confidence
-                
-            # Eğer yeterince benzer hafıza bulunamazsa, varsayılan yanıt döndür
-            return "Üzgünüm, bu konuda yardımcı olamıyorum.", 0.0
+            
+            # Yeni yanıt oluştur
+            response = self.generate_response(processed_message, intent)
+            
+            # Yeni yanıtı hafızaya ekle
+            memory_data = {
+                "prompt": processed_message,
+                "response": response,
+                "embedding": message_embedding,
+                "intent": intent,
+                "tags": [],
+                "priority": 1,
+                "category": "genel"
+            }
+            
+            self.memory_manager.add_memory(memory_data)
+            
+            return response, 0.5  # Yeni yanıt için varsayılan güven skoru
             
         except Exception as e:
             logger.error(f"Mesaj işleme hatası: {str(e)}")
             return ERRORS["response_error"], 0.0
-
-    def generate_response(self, message: str, intent: str = None) -> str:
-        """Mesaja uygun yanıt oluştur"""
-        try:
-            # Basit yanıt mantığı
-            if "merhaba" in message.lower() or "selam" in message.lower():
-                return "Merhaba! Size nasıl yardımcı olabilirim?"
-            elif "nasılsın" in message.lower():
-                return "İyiyim, teşekkür ederim. Siz nasılsınız?"
-            elif "teşekkür" in message.lower():
-                return "Rica ederim!"
-            else:
-                return "Üzgünüm, bu konuda yardımcı olamıyorum."
-        except Exception as e:
-            logger.error(f"Yanıt oluşturma hatası: {str(e)}")
-            return ERRORS["response_error"]
-
-    async def learn(self, prompt: str, response: str, intent: str = None) -> bool:
-        """Yeni bir prompt-yanıt çifti öğrenir."""
-        try:
-            logger.info(f"Yeni eğitim verisi ekleniyor - Prompt: {prompt}, Intent: {intent}")
-            
-            # Vektör hesapla
-            try:
-                prompt_embedding = self.encode_text(prompt)
-            except Exception as e:
-                logger.error(f"Vektör hesaplama hatası: {str(e)}")
-                return False
-            
-            # Veritabanına kaydet
-            try:
-                self.memory_manager.add_memory(prompt, prompt_embedding, response, intent)
-            except Exception as e:
-                logger.error(f"Bellek yöneticisi hatası: {str(e)}")
-                return False
-            
-            # Supabase'e kaydet
-            try:
-                training_data = {
-                    "prompt": prompt,
-                    "response": response,
-                    "intent": intent,
-                    "confidence_score": 1.0,  # Öğrenme sırasında güven skoru 1.0
-                    "created_at": datetime.now().isoformat()
-                }
-                
-                result = self.supabase.table('training_data').insert(training_data).execute()
-                
-                if not result.data:
-                    raise Exception("Supabase'e veri eklenemedi")
-                    
-                logger.info(f"Eğitim verisi başarıyla eklendi - ID: {result.data[0]['id']}")
-                return True
-            except Exception as e:
-                logger.error(f"Supabase kayıt hatası: {str(e)}")
-                return False
-                
-        except Exception as e:
-            logger.error(f"Eğitim verisi eklenirken hata: {str(e)}")
-            return False
 
     def sync_learn(self, prompt: str, response: str, intent: str = None) -> bool:
         """Senkron olarak yeni bir prompt-yanıt çifti öğrenir."""
