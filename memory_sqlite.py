@@ -74,6 +74,13 @@ class SQLiteMemoryManager:
                         logger.error(f"Embedding dönüştürme hatası: {str(e)}")
                         embedding_blob = None
                 
+                # Duygu analizi sonuçlarını işle
+                emotion_data = memory_data.get("emotion", {})
+                if isinstance(emotion_data, dict):
+                    emotion = emotion_data.get("emotion", "neutral")
+                else:
+                    emotion = str(emotion_data)
+                
                 cursor.execute("""
                     INSERT INTO memories (prompt, response, embedding, intent, emotion)
                     VALUES (?, ?, ?, ?, ?)
@@ -82,7 +89,7 @@ class SQLiteMemoryManager:
                     str(memory_data["response"]),
                     embedding_blob,
                     str(memory_data.get("intent", "genel")),
-                    str(memory_data.get("emotion", "neutral"))
+                    str(emotion)
                 ))
                 conn.commit()
                 last_id = cursor.lastrowid
