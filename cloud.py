@@ -676,14 +676,18 @@ class CloudAI:
                 "response": response,
                 "embedding": message_embedding,
                 "intent": intent,
-                "emotion": emotion_data,
+                "emotion": emotion_data["emotion"],  # Sadece duygu değerini kaydet
                 "created_at": datetime.now().isoformat()
             }
             
             self.memory_manager.add_memory(memory_data)
             
             # Duygu yoğunluğunu güven skoru olarak kullan
-            confidence = abs(emotion_data.get("intensity", 0.0))
+            intensity = emotion_data.get("intensity", 0.0)
+            if isinstance(intensity, (int, float)):
+                confidence = abs(intensity)
+            else:
+                confidence = 0.0
             
             return response, confidence
             
