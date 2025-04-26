@@ -12,8 +12,6 @@ class ChatPanel:
         self.cloud_ai = cloud_ai
         if "messages" not in st.session_state:
             st.session_state.messages = []
-        if "current_message" not in st.session_state:
-            st.session_state.current_message = ""
         if "is_processing" not in st.session_state:
             st.session_state.is_processing = False
             
@@ -22,7 +20,7 @@ class ChatPanel:
         st.session_state.messages = []
         st.rerun()
         
-    def _type_message_slowly(self, text: str, delay: float = 0.05):
+    def _type_message_slowly(self, text: str, delay: float = 0.1):
         """Mesajı yavaşça yaz"""
         placeholder = st.empty()
         full_text = ""
@@ -30,9 +28,9 @@ class ChatPanel:
             full_text += char
             placeholder.markdown(f'''
                 <div class="message cloud-message">
-                    <div class="cloud-icon">☁️</div>
+                    <div class="cloud-icon">🤖</div>
                     <div class="message-content">
-                        <div class="username">Cloud</div>
+                        <div class="username">Cloud AI</div>
                         {full_text}
                     </div>
                 </div>
@@ -40,137 +38,134 @@ class ChatPanel:
             time.sleep(delay)
 
     def render(self):
-        # Dark mode kontrolü
-        is_dark_mode = st.session_state.get('dark_mode', False)
+        st.title("Cloud AI Chat")
         
-        st.markdown(f"""
+        # CSS stilleri
+        st.markdown("""
         <style>
-        /* Genel chat container stili */
-        .chat-container {{
+        /* Ana container */
+        .main-container {
             max-width: 800px;
             margin: 0 auto;
-            padding: 1rem;
-        }}
-
-        /* Mesaj balonları için genel stil */
-        .message {{
-            padding: 1rem 1.5rem;
-            margin: 0.5rem 0;
-            border-radius: 15px;
+            padding: 20px;
+        }
+        
+        /* Mesaj balonları */
+        .message {
+            padding: 12px 16px;
+            margin: 8px 0;
+            border-radius: 12px;
             max-width: 80%;
             line-height: 1.5;
-            font-size: 1rem;
-            box-shadow: 0 2px 5px {is_dark_mode and 'rgba(0,0,0,0.2)' or 'rgba(0,0,0,0.1)'};
-        }}
-
-        /* Kullanıcı mesajı stili */
-        .user-message {{
+            font-size: 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        /* Kullanıcı mesajı */
+        .user-message {
             margin-left: auto;
-            background: linear-gradient(135deg, #2979FF, #1565C0);
-            color: rgba(255, 255, 255, 0.95);
-            border: 1px solid {is_dark_mode and '#1E88E5' or '#2962FF'};
-        }}
-
-        /* Cloud mesajı stili */
-        .cloud-message {{
-            display: flex;
-            align-items: start;
-            margin-right: auto;
-            background-color: {is_dark_mode and '#2A2A2A' or '#f8f9fa'};
-            border: 1px solid {is_dark_mode and '#3A3A3A' or '#e9ecef'};
-            color: {is_dark_mode and '#E0E0E0' or '#212529'};
-        }}
-
-        /* Cloud ikonu stili */
-        .cloud-icon {{
-            font-size: 1.5rem;
-            margin-right: 0.75rem;
-            color: {is_dark_mode and '#4FC3F7' or '#0084ff'};
-            opacity: 0.9;
-        }}
-
-        /* Mesaj içeriği stili */
-        .message-content {{
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-        }}
-
-        /* Kullanıcı adı stili */
-        .username {{
-            font-weight: 600;
-            margin-bottom: 0.3rem;
-            color: {is_dark_mode and '#E0E0E0' or '#424242'};
-            opacity: 0.9;
-        }}
-
-        /* Düşünme animasyonu container */
-        .thinking-container {{
-            display: flex;
-            align-items: center;
-            padding: 0.5rem 1rem;
-            background-color: {is_dark_mode and '#2A2A2A' or '#f8f9fa'};
-            border-radius: 10px;
-            margin: 0.5rem 0;
-            border: 1px solid {is_dark_mode and '#3A3A3A' or '#e9ecef'};
-        }}
-
-        /* Düşünme animasyonu */
-        .typing-animation {{
-            display: inline-block;
-            margin-left: 4px;
-            color: {is_dark_mode and '#4FC3F7' or '#0084ff'};
-        }}
-
-        .typing-animation::after {{
-            content: '...';
-            animation: typing 1.5s infinite;
-        }}
-
-        @keyframes typing {{
-            0% {{ content: '.'; }}
-            33% {{ content: '..'; }}
-            66% {{ content: '...'; }}
-            100% {{ content: '.'; }}
-        }}
-
-        /* Input container stili */
-        .input-container {{
-            margin-top: 1rem;
-            padding: 1rem;
-            background-color: {is_dark_mode and '#2A2A2A' or '#ffffff'};
-            border-radius: 10px;
-            border: 1px solid {is_dark_mode and '#3A3A3A' or '#e9ecef'};
-        }}
-
-        /* Input alanı stili */
-        .stTextInput > div > div > input {{
-            background-color: {is_dark_mode and '#363636' or '#ffffff'} !important;
-            color: {is_dark_mode and '#E0E0E0' or '#212529'} !important;
-            border: 1px solid {is_dark_mode and '#4A4A4A' or '#ced4da'};
-            border-radius: 8px;
-            padding: 0.75rem;
-            font-size: 1rem;
-            transition: all 0.2s ease;
-        }}
-
-        .stTextInput > div > div > input:focus {{
-            border-color: {is_dark_mode and '#4FC3F7' or '#0084ff'};
-            box-shadow: 0 0 0 2px {is_dark_mode and 'rgba(79, 195, 247, 0.2)' or 'rgba(0, 132, 255, 0.2)'};
-        }}
-
-        /* Gönder butonu stili */
-        .stButton > button {{
-            background: linear-gradient(135deg, #2979FF, #1565C0);
+            background: linear-gradient(135deg, #4A90E2, #357ABD);
             color: white;
             border: none;
-            padding: 0.75rem 1.5rem;
-            border-radius: 8px;
+        }
+        
+        /* AI mesajı */
+        .cloud-message {
+            margin-right: auto;
+            background: #f0f2f5;
+            color: #1c1e21;
+            border: 1px solid #e4e6eb;
+        }
+        
+        /* Mesaj içeriği */
+        .message-content {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        
+        /* Kullanıcı adı */
+        .username {
             font-weight: 600;
-            transition: transform 0.2s ease;
-        }}
-
-        .stButton > button:hover {{
+            margin-bottom: 4px;
+            font-size: 14px;
+            color: rgba(255,255,255,0.9);
+        }
+        
+        .cloud-message .username {
+            color: #65676b;
+        }
+        
+        /* Düşünme animasyonu */
+        .thinking-container {
+            display: flex;
+            align-items: center;
+            padding: 8px 16px;
+            background: #f0f2f5;
+            border-radius: 12px;
+            margin: 8px 0;
+            border: 1px solid #e4e6eb;
+        }
+        
+        .typing-animation {
+            display: inline-block;
+            margin-left: 4px;
+            color: #65676b;
+        }
+        
+        .typing-animation::after {
+            content: '...';
+            animation: typing 1.5s infinite;
+        }
+        
+        @keyframes typing {
+            0% { content: '.'; }
+            33% { content: '..'; }
+            66% { content: '...'; }
+            100% { content: '.'; }
+        }
+        
+        /* Input alanı */
+        .stTextInput > div > div > input {
+            background-color: #f0f2f5 !important;
+            color: #1c1e21 !important;
+            border: 1px solid #e4e6eb;
+            border-radius: 12px;
+            padding: 12px;
+            font-size: 16px;
+            transition: all 0.2s ease;
+        }
+        
+        .stTextInput > div > div > input:focus {
+            border-color: #4A90E2;
+            box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
+        }
+        
+        /* Butonlar */
+        .stButton > button {
+            background: linear-gradient(135deg, #4A90E2, #357ABD);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+        
+        .stButton > button:hover {
             transform: translateY(-2px);
-        }}
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        /* Temizle butonu */
+        .clear-button {
+            background: #f0f2f5 !important;
+            color: #1c1e21 !important;
+            border: 1px solid #e4e6eb !important;
+        }
+        
+        .clear-button:hover {
+            background: #e4e6eb !important;
+        }
         </style>
         """, unsafe_allow_html=True)
 
@@ -188,25 +183,29 @@ class ChatPanel:
             else:
                 st.markdown(f'''
                 <div class="message cloud-message">
-                    <div class="cloud-icon">☁️</div>
+                    <div class="cloud-icon">🤖</div>
                     <div class="message-content">
-                        <div class="username">Cloud</div>
+                        <div class="username">Cloud AI</div>
                         {message["content"]}
                     </div>
                 </div>
                 ''', unsafe_allow_html=True)
 
         # Mesaj girişi ve butonlar
+        st.markdown("<div class='main-container'>", unsafe_allow_html=True)
+        
         col1, col2, col3 = st.columns([4, 1, 1])
         with col1:
-            user_input = st.text_input("Mesajınız:", key="user_input")
+            user_input = st.text_input("Mesajınızı yazın...", key="user_input")
         with col2:
             if st.button("Gönder", use_container_width=True):
                 if user_input and not st.session_state.is_processing:
                     self._process_user_input(user_input)
         with col3:
-            if st.button("Temizle", use_container_width=True):
+            if st.button("Temizle", use_container_width=True, key="clear_button"):
                 self.clear_messages()
+                
+        st.markdown("</div>", unsafe_allow_html=True)
                 
     def _process_user_input(self, user_input: str):
         """Kullanıcı mesajını işle"""
@@ -220,10 +219,10 @@ class ChatPanel:
             thinking = st.empty()
             thinking.markdown(f'''
             <div class="thinking-container">
-                <div class="cloud-icon">☁️</div>
+                <div class="cloud-icon">🤖</div>
                 <div class="message-content">
-                    <div class="username">Cloud</div>
-                    düşünüyor<span class="typing-animation"></span>
+                    <div class="username">Cloud AI</div>
+                    Düşünüyorum<span class="typing-animation"></span>
                 </div>
             </div>
             ''', unsafe_allow_html=True)
