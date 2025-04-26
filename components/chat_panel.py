@@ -22,24 +22,6 @@ class ChatPanel:
         st.success("Mesaj geçmişi temizlendi!")
         st.rerun()
         
-    def _type_message_slowly(self, text: str, delay: float = 0.05):
-        """Mesajı yavaşça yaz"""
-        placeholder = st.empty()
-        full_text = ""
-        for char in text:
-            full_text += char
-            placeholder.markdown(f'''
-                <div class="message cloud-message">
-                    <div class="cloud-icon">🤖</div>
-                    <div class="message-content">
-                        <div class="username">Cloud AI</div>
-                        {full_text}
-                        <div class="typing-cursor">|</div>
-                    </div>
-                </div>
-            ''', unsafe_allow_html=True)
-            time.sleep(delay)
-
     def render(self):
         st.title("Cloud AI Chat")
         
@@ -100,60 +82,6 @@ class ChatPanel:
         
         .cloud-message .username {
             color: #65676b;
-        }
-        
-        /* Düşünme animasyonu */
-        .thinking-container {
-            display: flex;
-            align-items: center;
-            padding: 12px 16px;
-            background: #f0f2f5;
-            border-radius: 12px;
-            margin: 8px 0;
-            border: 1px solid #e4e6eb;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        
-        .thinking-dots {
-            display: flex;
-            gap: 4px;
-            margin-left: 8px;
-        }
-        
-        .thinking-dot {
-            width: 8px;
-            height: 8px;
-            background: #4A90E2;
-            border-radius: 50%;
-            animation: thinking 1.5s infinite;
-        }
-        
-        .thinking-dot:nth-child(2) {
-            animation-delay: 0.2s;
-        }
-        
-        .thinking-dot:nth-child(3) {
-            animation-delay: 0.4s;
-        }
-        
-        @keyframes thinking {
-            0%, 100% { transform: translateY(0); opacity: 0.3; }
-            50% { transform: translateY(-4px); opacity: 1; }
-        }
-        
-        /* Daktilo imleci */
-        .typing-cursor {
-            display: inline-block;
-            width: 2px;
-            height: 1em;
-            background: #4A90E2;
-            margin-left: 2px;
-            animation: blink 1s infinite;
-        }
-        
-        @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0; }
         }
         
         /* Input alanı */
@@ -231,17 +159,6 @@ class ChatPanel:
             }
         }
         
-        /* Mesaj geçmişi container */
-        .messages-container {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            padding: 16px;
-            height: calc(100vh - 300px);
-            overflow-y: auto;
-            margin-bottom: 20px;
-        }
-        
         /* Mesaj alanı için yeni stiller */
         .message-area {
             flex: 1;
@@ -261,28 +178,7 @@ class ChatPanel:
             border-top: 1px solid #e4e6eb;
             z-index: 1000;
         }
-        
-        /* Enter tuşu için JavaScript */
-        textarea {
-            position: relative;
-        }
         </style>
-        
-        <script>
-        // Enter tuşu ile gönderme
-        const textareas = window.parent.document.querySelectorAll('textarea');
-        textareas.forEach(textarea => {
-            textarea.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    const button = window.parent.document.querySelector('button[kind="primary"]');
-                    if (button) {
-                        button.click();
-                    }
-                }
-            });
-        });
-        </script>
         """, unsafe_allow_html=True)
 
         # Ana container
@@ -361,28 +257,6 @@ class ChatPanel:
             if response:
                 # Yanıtı session state'e ekle
                 st.session_state.messages.append({"role": "assistant", "content": response})
-                
-                # Tüm mesajları göster
-                for msg in st.session_state.messages:
-                    if msg["role"] == "user":
-                        st.markdown(f'''
-                        <div class="message user-message">
-                            <div class="message-content">
-                                <div class="username">Siz</div>
-                                {msg["content"]}
-                            </div>
-                        </div>
-                        ''', unsafe_allow_html=True)
-                    else:
-                        st.markdown(f'''
-                        <div class="message cloud-message">
-                            <div class="cloud-icon">🤖</div>
-                            <div class="message-content">
-                                <div class="username">Cloud AI</div>
-                                {msg["content"]}
-                            </div>
-                        </div>
-                        ''', unsafe_allow_html=True)
                 
                 # Input alanını temizle
                 st.session_state.user_input = ""
